@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image, BarChart3, Download, Upload } from 'lucide-react';
+import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Filter } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
+import { ArtistModal } from '@/components/ArtistModal';
 import { RevenueDashboard } from '@/components/RevenueDashboard';
 import { ImportConfirmModal } from '@/components/ImportExportModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { formatDate, getWeekDates, getDayName, isToday } from '@/utils/dateUtils';
-import { Appointment, AppointmentStatus } from '@/types';
+import { Appointment, AppointmentStatus, TattooArtist } from '@/types';
 import {
   exportAppointmentsToJson,
   downloadJsonFile,
@@ -22,12 +23,15 @@ export function AppointmentBoard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
+  const [artists, setArtists] = useLocalStorage<TattooArtist[]>('tattoo_artists', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
   const [showDashboard, setShowDashboard] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importDiff, setImportDiff] = useState<ImportDiffResult | null>(null);
+  const [selectedArtistId, setSelectedArtistId] = useState<string | 'all'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,9 +47,13 @@ export function AppointmentBoard() {
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
 
+  const filteredAppointments = selectedArtistId === 'all'
+    ? appointments
+    : appointments.filter(apt => apt.artistId === selectedArtistId);
+
   const allWeekAppointments = weekDates.map(date => {
     const dateStr = formatDate(date);
-    const dayAppointments = appointments
+    const dayAppointments = filteredAppointments
       .filter(apt => apt.date === dateStr)
       .sort((a, b) => a.time.localeCompare(b.time));
     return { date, dateStr, appointments: dayAppointments };
@@ -65,13 +73,16 @@ export function AppointmentBoard() {
   const [expandedDates, setExpandedDates] = useState<Set<string>>(getDefaultExpandedDates());
 
   const weekAppointmentsList = allWeekAppointments.flatMap(d => d.appointments);
+  const filteredWeekList = filteredAppointments.filter(apt => 
+    weekDates.some(d => formatDate(d) === apt.date)
+  );
 
   const totalWeek = weekAppointmentsList.length;
   const totalToday = allWeekAppointments.find(d => d.dateStr === todayStr)?.appointments.length || 0;
-  const totalPending = weekAppointmentsList.filter(apt => apt.status === 'pending').length;
-  const totalCompleted = weekAppointmentsList.filter(apt => apt.status === 'completed').length;
-  const totalConfirmed = weekAppointmentsList.filter(apt => apt.status === 'confirmed').length;
-  const totalArrived = weekAppointmentsList.filter(apt => apt.status === 'arrived').length;
+  const totalPending = filteredWeekList.filter(apt => apt.status === 'pending').length;
+  const totalCompleted = filteredWeekList.filter(apt => apt.status === 'completed').length;
+  const totalConfirmed = filteredWeekList.filter(apt => apt.status === 'confirmed').length;
+  const totalArrived = filteredWeekList.filter(apt => apt.status === 'arrived').length;
 
   const toggleDateExpand = (dateStr: string) => {
     setExpandedDates(prev => {
@@ -167,6 +178,34 @@ export function AppointmentBoard() {
     setImportDiff(null);
   };
 
+  const handleSaveArtist = (artist: TattooArtist) => {
+    setArtists(prev => {
+      const exists = prev.find(a => a.id === artist.id);
+      if (exists) {
+        return prev.map(a => a.id === artist.id ? artist : a);
+      }
+      return [...prev, artist];
+    });
+  };
+
+  const handleToggleArtistActive = (id: string) => {
+    setArtists(prev =>
+      prev.map(a => a.id === id ? { ...a, active: !a.active } : a)
+    );
+  };
+
+  const handleDeleteArtist = (id: string) => {
+    setArtists(prev => prev.filter(a => a.id !== id));
+  };
+
+  const activeArtists = artists.filter(a => a.active);
+
+  const getArtistName = (artistId?: string): string => {
+    if (!artistId) return '未分配';
+    const artist = artists.find(a => a.id === artistId);
+    return artist?.name || '未知纹身师';
+  };
+
   return (
     <div className="min-h-screen bg-ink-950 text-white">
       <div className="bg-ink-900/50 border-b border-ink-800 sticky top-0 z-40 backdrop-blur-sm">
@@ -184,6 +223,13 @@ export function AppointmentBoard() {
               </div>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
+              <button
+                onClick={() => setIsArtistModalOpen(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <Users className="w-4 h-4" />
+                <span>纹身师管理</span>
+              </button>
               <button
                 onClick={() => navigate('/reference-images')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
@@ -241,6 +287,23 @@ export function AppointmentBoard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-4 mt-5">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <span className="text-gray-500 text-sm">纹身师:</span>
+              <select
+                value={selectedArtistId}
+                onChange={(e) => setSelectedArtistId(e.target.value)}
+                className="bg-ink-800 border border-ink-700 text-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+              >
+                <option value="all">全部纹身师</option>
+                {activeArtists.map(artist => (
+                  <option key={artist.id} value={artist.id}>
+                    {artist.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="w-px h-6 bg-ink-700" />
             <div className="flex items-center gap-2">
               <span className="text-gray-500 text-sm">未来八天总计:</span>
               <span className="text-white font-semibold">{totalWeek} 单</span>
@@ -366,6 +429,7 @@ export function AppointmentBoard() {
                           onEdit={handleEdit}
                           onDelete={handleDelete}
                           index={aptIndex}
+                          artistName={getArtistName(appointment.artistId)}
                         />
                       ))}
                     </div>
@@ -382,11 +446,20 @@ export function AppointmentBoard() {
         editingAppointment={editingAppointment}
         selectedDate={modalDate}
         appointments={appointments}
+        artists={activeArtists}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);
           setEditingAppointment(null);
         }}
+      />
+      <ArtistModal
+        isOpen={isArtistModalOpen}
+        artists={artists}
+        onSave={handleSaveArtist}
+        onToggleActive={handleToggleArtistActive}
+        onDelete={handleDeleteArtist}
+        onClose={() => setIsArtistModalOpen(false)}
       />
       <ImportConfirmModal
         isOpen={isImportModalOpen}

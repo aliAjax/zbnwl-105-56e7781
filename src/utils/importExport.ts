@@ -82,6 +82,10 @@ export function validateAppointment(data: unknown): { valid: boolean; errors: st
     errors.push('字段 notes 必须是字符串');
   }
 
+  if (apt.artistId !== undefined && apt.artistId !== null && typeof apt.artistId !== 'string') {
+    errors.push('字段 artistId 必须是字符串');
+  }
+
   return { valid: errors.length === 0, errors };
 }
 

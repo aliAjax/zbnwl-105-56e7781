@@ -8,11 +8,12 @@ interface AppointmentCardProps {
   onEdit: (appointment: Appointment) => void;
   onDelete: (id: string) => void;
   index: number;
+  artistName?: string;
 }
 
 const STATUS_FLOW: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed'];
 
-export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete, index }: AppointmentCardProps) {
+export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete, index, artistName }: AppointmentCardProps) {
   const navigate = useNavigate();
   const currentStatusIndex = STATUS_FLOW.indexOf(appointment.status);
 
@@ -67,6 +68,12 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
       </div>
 
       <div className="space-y-2 mb-4">
+        {artistName && (
+          <div className="flex items-center gap-2 text-gray-300 text-sm">
+            <User className="w-4 h-4 text-gold-600" />
+            <span>纹身师：{artistName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2 text-gray-300 text-sm">
           <MapPin className="w-4 h-4 text-gold-600" />
           <span>部位：{appointment.bodyPart}</span>

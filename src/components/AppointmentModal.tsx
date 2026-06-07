@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, AlertTriangle } from 'lucide-react';
-import { Appointment, AppointmentStatus } from '@/types';
+import { Appointment, AppointmentStatus, TattooArtist } from '@/types';
 import { generateId, getTimeSlot, isTimeOverlap, minutesToTime } from '@/utils/dateUtils';
 
 interface AppointmentModalProps {
@@ -8,6 +8,7 @@ interface AppointmentModalProps {
   editingAppointment?: Appointment | null;
   selectedDate: string;
   appointments: Appointment[];
+  artists: TattooArtist[];
   onSave: (appointment: Appointment) => void;
   onClose: () => void;
 }
@@ -23,9 +24,10 @@ const initialFormData = {
   depositAmount: 0,
   estimatedBalance: 0,
   notes: '',
+  artistId: '',
 };
 
-export function AppointmentModal({ isOpen, editingAppointment, selectedDate, appointments, onSave, onClose }: AppointmentModalProps) {
+export function AppointmentModal({ isOpen, editingAppointment, selectedDate, appointments, artists, onSave, onClose }: AppointmentModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConflictWarning, setShowConflictWarning] = useState(false);
@@ -46,6 +48,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
           depositAmount: editingAppointment.depositAmount || 0,
           estimatedBalance: editingAppointment.estimatedBalance || 0,
           notes: editingAppointment.notes || '',
+          artistId: editingAppointment.artistId || '',
         });
       } else {
         setFormData({
@@ -86,6 +89,8 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
     return appointments.filter(apt => {
       if (apt.id === appointment.id) return false;
       if (apt.date !== appointment.date) return false;
+      if (apt.artistId !== appointment.artistId) return false;
+      if (!appointment.artistId && !apt.artistId) return false;
       
       const aptSlot = getTimeSlot(apt.time, apt.duration);
       return isTimeOverlap(currentSlot, aptSlot);
@@ -109,6 +114,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
       depositAmount: formData.depositAmount || undefined,
       estimatedBalance: formData.estimatedBalance || undefined,
       notes: formData.notes.trim() || undefined,
+      artistId: formData.artistId || undefined,
       status: editingAppointment?.status || ('pending' as AppointmentStatus),
       createdAt: editingAppointment?.createdAt || new Date().toISOString(),
     };
@@ -205,6 +211,28 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
                 className="w-full px-4 py-2.5 bg-ink-900 border border-ink-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">
+              负责纹身师
+            </label>
+            <select
+              value={formData.artistId}
+              onChange={(e) => setFormData({ ...formData, artistId: e.target.value })}
+              className="w-full px-4 py-2.5 bg-ink-900 border border-ink-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+            >
+              <option value="">请选择纹身师（可选）</option>
+              {artists.map(artist => (
+                <option key={artist.id} value={artist.id}>
+                  {artist.name}
+                  {artist.specialty ? ` - ${artist.specialty}` : ''}
+                </option>
+              ))}
+            </select>
+            {artists.length === 0 && (
+              <p className="mt-1 text-sm text-yellow-500">暂无纹身师，请先在"纹身师管理"中添加</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -351,12 +379,15 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
             </div>
 
             <div className="px-6 py-5">
-              <p className="text-gray-300 text-sm mb-4">以下预约与当前预约时间重叠：</p>
+              <p className="text-gray-300 text-sm mb-4">以下预约与当前预约时间重叠（同一纹身师）：</p>
               <div className="space-y-3 max-h-60 overflow-y-auto">
                 {conflictingAppointments.map((apt) => {
                   const endTime = minutesToTime(
                     (parseInt(apt.time.split(':')[0]) * 60 + parseInt(apt.time.split(':')[1])) + apt.duration * 60
                   );
+                  const artistName = apt.artistId 
+                    ? artists.find(a => a.id === apt.artistId)?.name || '未知纹身师'
+                    : '未分配';
                   return (
                     <div
                       key={apt.id}
@@ -372,6 +403,9 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
                         <span>时间: {apt.time} - {endTime}</span>
                         <span className="mx-2">|</span>
                         <span>时长: {apt.duration}小时</span>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        <span>纹身师: {artistName}</span>
                       </div>
                       {apt.bodyPart && (
                         <div className="text-sm text-gray-500 mt-1">

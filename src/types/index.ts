@@ -1,5 +1,14 @@
 export type AppointmentStatus = 'pending' | 'confirmed' | 'arrived' | 'completed';
 
+export interface TattooArtist {
+  id: string;
+  name: string;
+  phone?: string;
+  specialty?: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface Appointment {
   id: string;
   customerName: string;
@@ -13,6 +22,7 @@ export interface Appointment {
   estimatedBalance?: number;
   notes?: string;
   status: AppointmentStatus;
+  artistId?: string;
   createdAt: string;
 }
 

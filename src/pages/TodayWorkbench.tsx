@@ -5,7 +5,7 @@ import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { formatDate } from '@/utils/dateUtils';
-import { Appointment, AppointmentStatus, STATUS_LABELS } from '@/types';
+import { Appointment, AppointmentStatus, STATUS_LABELS, TattooArtist } from '@/types';
 
 const STATUS_GROUPS: { key: AppointmentStatus; icon: typeof Clock; color: string }[] = [
   { key: 'pending', icon: Clock, color: 'text-tattoo-red border-tattoo-red/30 bg-tattoo-red/10' },
@@ -17,9 +17,18 @@ const STATUS_GROUPS: { key: AppointmentStatus; icon: typeof Clock; color: string
 export default function TodayWorkbench() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
+  const [artists] = useLocalStorage<TattooArtist[]>('tattoo_artists', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
+
+  const activeArtists = artists.filter(a => a.active);
+
+  const getArtistName = (artistId?: string): string | undefined => {
+    if (!artistId) return undefined;
+    const artist = artists.find(a => a.id === artistId);
+    return artist?.name;
+  };
 
   const todayStr = formatDate(new Date());
 
@@ -205,6 +214,7 @@ export default function TodayWorkbench() {
                           onEdit={handleEdit}
                           onDelete={handleDelete}
                           index={aptIndex}
+                          artistName={getArtistName(appointment.artistId)}
                         />
                       ))
                     )}
@@ -221,6 +231,7 @@ export default function TodayWorkbench() {
         editingAppointment={editingAppointment}
         selectedDate={modalDate}
         appointments={appointments}
+        artists={activeArtists}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);
