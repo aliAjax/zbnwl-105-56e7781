@@ -194,10 +194,6 @@ export function AppointmentBoard() {
     );
   };
 
-  const handleDeleteArtist = (id: string) => {
-    setArtists(prev => prev.filter(a => a.id !== id));
-  };
-
   const activeArtists = artists.filter(a => a.active);
 
   const getArtistName = (artistId?: string): string => {
@@ -296,9 +292,9 @@ export function AppointmentBoard() {
                 className="bg-ink-800 border border-ink-700 text-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
               >
                 <option value="all">全部纹身师</option>
-                {activeArtists.map(artist => (
+                {artists.map(artist => (
                   <option key={artist.id} value={artist.id}>
-                    {artist.name}
+                    {artist.name}{!artist.active ? ' (已停用)' : ''}
                   </option>
                 ))}
               </select>
@@ -446,7 +442,7 @@ export function AppointmentBoard() {
         editingAppointment={editingAppointment}
         selectedDate={modalDate}
         appointments={appointments}
-        artists={activeArtists}
+        artists={artists}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);
@@ -458,7 +454,6 @@ export function AppointmentBoard() {
         artists={artists}
         onSave={handleSaveArtist}
         onToggleActive={handleToggleArtistActive}
-        onDelete={handleDeleteArtist}
         onClose={() => setIsArtistModalOpen(false)}
       />
       <ImportConfirmModal

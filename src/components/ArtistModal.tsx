@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, User, Phone, Briefcase, Check, X as XIcon, Edit2, Trash2 } from 'lucide-react';
+import { X, Plus, User, Phone, Briefcase, Check, X as XIcon, Edit2 } from 'lucide-react';
 import { TattooArtist } from '@/types';
 import { generateId } from '@/utils/dateUtils';
 
@@ -8,7 +8,6 @@ interface ArtistModalProps {
   artists: TattooArtist[];
   onSave: (artist: TattooArtist) => void;
   onToggleActive: (id: string) => void;
-  onDelete: (id: string) => void;
   onClose: () => void;
 }
 
@@ -18,7 +17,7 @@ const initialFormData = {
   specialty: '',
 };
 
-export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onDelete, onClose }: ArtistModalProps) {
+export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }: ArtistModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editingArtist, setEditingArtist] = useState<TattooArtist | null>(null);
@@ -226,17 +225,6 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onDelete,
                       >
                         <XIcon className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => {
-                          if (confirm('确定要删除这个纹身师吗？')) {
-                            onDelete(artist.id);
-                          }
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-ink-700 rounded-lg transition-colors"
-                        title="删除"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -278,17 +266,6 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onDelete,
                       >
                         <Check className="w-4 h-4" />
                         启用
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (confirm('确定要删除这个纹身师吗？')) {
-                            onDelete(artist.id);
-                          }
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-ink-700 rounded-lg transition-colors"
-                        title="删除"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

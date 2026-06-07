@@ -231,7 +231,7 @@ export default function TodayWorkbench() {
         editingAppointment={editingAppointment}
         selectedDate={modalDate}
         appointments={appointments}
-        artists={activeArtists}
+        artists={artists}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);

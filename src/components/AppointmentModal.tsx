@@ -34,6 +34,14 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
   const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
   const [pendingAppointment, setPendingAppointment] = useState<Appointment | null>(null);
 
+  const activeArtists = artists.filter(a => a.active);
+
+  const getArtistName = (artistId?: string): string => {
+    if (!artistId) return '未分配';
+    const artist = artists.find(a => a.id === artistId);
+    return artist?.name || '未知纹身师';
+  };
+
   useEffect(() => {
     if (isOpen) {
       if (editingAppointment) {
@@ -223,14 +231,14 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
               className="w-full px-4 py-2.5 bg-ink-900 border border-ink-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
             >
               <option value="">请选择纹身师（可选）</option>
-              {artists.map(artist => (
+              {activeArtists.map(artist => (
                 <option key={artist.id} value={artist.id}>
                   {artist.name}
                   {artist.specialty ? ` - ${artist.specialty}` : ''}
                 </option>
               ))}
             </select>
-            {artists.length === 0 && (
+            {activeArtists.length === 0 && (
               <p className="mt-1 text-sm text-yellow-500">暂无纹身师，请先在"纹身师管理"中添加</p>
             )}
           </div>
@@ -385,9 +393,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
                   const endTime = minutesToTime(
                     (parseInt(apt.time.split(':')[0]) * 60 + parseInt(apt.time.split(':')[1])) + apt.duration * 60
                   );
-                  const artistName = apt.artistId 
-                    ? artists.find(a => a.id === apt.artistId)?.name || '未知纹身师'
-                    : '未分配';
+                  const artistName = getArtistName(apt.artistId);
                   return (
                     <div
                       key={apt.id}
