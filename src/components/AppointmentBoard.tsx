@@ -1,26 +1,43 @@
 import { useState } from 'react';
-import { Plus, CalendarDays } from 'lucide-react';
-import { DateNavigator } from '@/components/DateNavigator';
+import { Plus, CalendarDays, ChevronDown } from 'lucide-react';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { formatDate } from '@/utils/dateUtils';
-import { Appointment, AppointmentStatus, STATUS_LABELS } from '@/types';
+import { formatDate, getWeekDates, getDayName, isToday } from '@/utils/dateUtils';
+import { Appointment, AppointmentStatus } from '@/types';
 
 export function AppointmentBoard() {
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
-  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set([formatDate(new Date())]));
 
-  const filteredAppointments = appointments
-    .filter(apt => apt.date === selectedDate)
-    .sort((a, b) => a.time.localeCompare(b.time));
+  const weekDates = getWeekDates();
+  const todayStr = formatDate(new Date());
 
-  const stats = {
-    total: appointments.filter(apt => apt.date === selectedDate).length,
-    pending: appointments.filter(apt => apt.date === selectedDate && apt.status === 'pending').length,
-    completed: appointments.filter(apt => apt.date === selectedDate && apt.status === 'completed').length,
+  const allWeekAppointments = weekDates.map(date => {
+    const dateStr = formatDate(date);
+    const dayAppointments = appointments
+      .filter(apt => apt.date === dateStr)
+      .sort((a, b) => a.time.localeCompare(b.time));
+    return { date, dateStr, appointments: dayAppointments };
+  });
+
+  const totalWeek = allWeekAppointments.reduce((sum, d) => sum + d.appointments.length, 0);
+  const totalToday = allWeekAppointments.find(d => d.dateStr === todayStr)?.appointments.length || 0;
+  const totalPending = appointments.filter(apt => apt.status === 'pending').length;
+  const totalCompleted = appointments.filter(apt => apt.status === 'completed').length;
+
+  const toggleDateExpand = (dateStr: string) => {
+    setExpandedDates(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) {
+        next.delete(dateStr);
+      } else {
+        next.add(dateStr);
+      }
+      return next;
+    });
   };
 
   const handleSaveAppointment = (appointment: Appointment) => {
@@ -29,7 +46,9 @@ export function AppointmentBoard() {
       if (exists) {
         return prev.map(apt => apt.id === appointment.id ? appointment : apt);
       }
-      return [...prev, appointment];
+      const next = [...prev, appointment];
+      setExpandedDates(prev => new Set(prev).add(appointment.date));
+      return next;
     });
   };
 
@@ -67,7 +86,7 @@ export function AppointmentBoard() {
                 </div>
                 <div>
                   <h1 className="font-display text-2xl font-bold text-white">纹身工作室预约看板</h1>
-                  <p className="text-gray-500 text-sm">管理每日预约，跟踪客户到店状态</p>
+                  <p className="text-gray-500 text-sm">管理未来七天预约，跟踪客户到店状态</p>
                 </div>
               </div>
             </div>
@@ -80,72 +99,135 @@ export function AppointmentBoard() {
             </button>
           </div>
 
-          <div className="flex items-center gap-6 mt-5">
+          <div className="flex flex-wrap items-center gap-4 mt-5">
             <div className="flex items-center gap-2">
-              <span className="text-gray-500 text-sm">今日总计:</span>
-              <span className="text-white font-semibold">{stats.total} 单</span>
+              <span className="text-gray-500 text-sm">未来七天总计:</span>
+              <span className="text-white font-semibold">{totalWeek} 单</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gold-500"></span>
+              <span className="text-gray-400 text-sm">今日: {totalToday}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-tattoo-red"></span>
-              <span className="text-gray-400 text-sm">待确认: {stats.pending}</span>
+              <span className="text-gray-400 text-sm">待确认: {totalPending}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-              <span className="text-gray-400 text-sm">已完成: {stats.completed}</span>
+              <span className="text-gray-400 text-sm">已完成: {totalCompleted}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        <div className="mb-6">
-          <DateNavigator selectedDate={selectedDate} onDateChange={setSelectedDate} />
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {allWeekAppointments.map(({ date, dateStr, appointments: dayApts }, dayIndex) => {
+          const isExpanded = expandedDates.has(dateStr);
+          const isTodayDate = isToday(dateStr);
 
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg font-semibold text-gray-200">
-            {selectedDate === formatDate(new Date()) ? '今天' : selectedDate} 的预约
-          </h2>
-          <span className="text-gray-500 text-sm">
-            共 {filteredAppointments.length} 个预约
-          </span>
-        </div>
-
-        {filteredAppointments.length === 0 ? (
-          <div className="bg-ink-800/50 border border-ink-700 border-dashed rounded-2xl p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-ink-700 flex items-center justify-center">
-              <CalendarDays className="w-8 h-8 text-gray-500" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-300 mb-2">暂无预约</h3>
-            <p className="text-gray-500 mb-4">点击"新增预约"按钮添加第一个预约</p>
-            <button
-              onClick={handleOpenModal}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-lg font-medium transition-colors text-sm"
+          return (
+            <div
+              key={dateStr}
+              className="bg-ink-800/30 rounded-2xl border border-ink-700 overflow-hidden animate-fade-in-up"
+              style={{ animationDelay: `${dayIndex * 80}ms` }}
             >
-              <Plus className="w-4 h-4" />
-              添加预约
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredAppointments.map((appointment, index) => (
-              <AppointmentCard
-                key={appointment.id}
-                appointment={appointment}
-                onStatusChange={handleStatusChange}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-                index={index}
-              />
-            ))}
-          </div>
-        )}
+              <button
+                onClick={() => toggleDateExpand(dateStr)}
+                className={`w-full flex items-center justify-between px-5 py-4 transition-colors ${
+                  isTodayDate ? 'bg-gold-500/10 hover:bg-gold-500/15' : 'hover:bg-ink-800/50'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-14 h-14 rounded-xl flex flex-col items-center justify-center ${
+                      isTodayDate
+                        ? 'bg-gold-500 text-ink-950'
+                        : 'bg-ink-700 text-gray-300'
+                    }`}
+                  >
+                    <span className="text-xs font-medium">
+                      {isTodayDate ? '今天' : getDayName(date)}
+                    </span>
+                    <span className="text-xl font-display font-bold">
+                      {date.getDate()}
+                    </span>
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-display text-lg font-semibold text-white">
+                      {date.getMonth() + 1}月{date.getDate()}日
+                      <span className="text-gray-500 text-sm ml-2 font-normal">
+                        {getDayName(date)}
+                      </span>
+                    </h3>
+                    <p className="text-gray-500 text-sm">
+                      {dayApts.length} 个预约
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {dayApts.length > 0 && (
+                    <div className="hidden sm:flex items-center gap-2">
+                      {dayApts.filter(a => a.status === 'pending').length > 0 && (
+                        <span className="px-2 py-1 bg-tattoo-red/20 text-red-300 text-xs rounded-full">
+                          待确认 {dayApts.filter(a => a.status === 'pending').length}
+                        </span>
+                      )}
+                      {dayApts.filter(a => a.status === 'completed').length > 0 && (
+                        <span className="px-2 py-1 bg-emerald-500/20 text-emerald-400 text-xs rounded-full">
+                          完成 {dayApts.filter(a => a.status === 'completed').length}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <ChevronDown
+                    className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {isExpanded && (
+                <div className="px-5 pb-5 pt-2 border-t border-ink-700/50">
+                  {dayApts.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <p className="text-gray-500 mb-3">这一天暂无预约</p>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenModal();
+                        }}
+                        className="inline-flex items-center gap-1.5 text-gold-500 hover:text-gold-400 text-sm transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                        添加预约
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {dayApts.map((appointment, aptIndex) => (
+                        <AppointmentCard
+                          key={appointment.id}
+                          appointment={appointment}
+                          onStatusChange={handleStatusChange}
+                          onEdit={handleEdit}
+                          onDelete={handleDelete}
+                          index={aptIndex}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <AppointmentModal
         isOpen={isModalOpen}
         editingAppointment={editingAppointment}
-        selectedDate={selectedDate}
+        selectedDate={todayStr}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);
