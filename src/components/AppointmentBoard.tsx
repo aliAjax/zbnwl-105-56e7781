@@ -10,6 +10,7 @@ export function AppointmentBoard() {
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [modalDate, setModalDate] = useState(formatDate(new Date()));
 
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
@@ -85,8 +86,9 @@ export function AppointmentBoard() {
     }
   };
 
-  const handleOpenModal = () => {
+  const handleOpenModal = (date = todayStr) => {
     setEditingAppointment(null);
+    setModalDate(date);
     setIsModalOpen(true);
   };
 
@@ -107,7 +109,7 @@ export function AppointmentBoard() {
               </div>
             </div>
             <button
-              onClick={handleOpenModal}
+              onClick={() => handleOpenModal()}
               className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-gold-500/25"
             >
               <Plus className="w-5 h-5" />
@@ -219,7 +221,7 @@ export function AppointmentBoard() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenModal();
+                          handleOpenModal(dateStr);
                         }}
                         className="inline-flex items-center gap-1.5 text-gold-500 hover:text-gold-400 text-sm transition-colors"
                       >
@@ -251,7 +253,7 @@ export function AppointmentBoard() {
       <AppointmentModal
         isOpen={isModalOpen}
         editingAppointment={editingAppointment}
-        selectedDate={todayStr}
+        selectedDate={modalDate}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);
