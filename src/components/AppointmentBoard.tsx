@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Filter, Calendar, List, Grid, TrendingUp } from 'lucide-react';
+import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Calendar, List, Grid, TrendingUp } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { ArtistModal } from '@/components/ArtistModal';
@@ -8,7 +8,9 @@ import { ImportConfirmModal } from '@/components/ImportExportModal';
 import { ListView } from '@/components/ListView';
 import { WeekView } from '@/components/WeekView';
 import { MonthView } from '@/components/MonthView';
+import { AppointmentFilters } from '@/components/AppointmentFilters';
 import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
+import { useAppointmentFilters } from '@/hooks/useAppointmentFilters';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
 import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS } from '@/types';
 import {
@@ -26,6 +28,13 @@ export function AppointmentBoard() {
   const location = useLocation();
   const { appointments, addAppointment, deleteAppointment, updateStatus, saveAppointments } = useAppointmentsRepository();
   const { artists, addArtist, toggleArtistActive } = useArtistsRepository();
+  const {
+    filters,
+    setFilter,
+    resetFilters,
+    filteredAppointments,
+    hasActiveFilters,
+  } = useAppointmentFilters(appointments);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -34,7 +43,6 @@ export function AppointmentBoard() {
   const [showDashboard, setShowDashboard] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importDiff, setImportDiff] = useState<ImportDiffResult | null>(null);
-  const [selectedArtistId, setSelectedArtistId] = useState<string | 'all'>('all');
   const [currentView, setCurrentView] = useState<CalendarView>('list');
   const [currentDate, setCurrentDate] = useState(new Date());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,10 +60,6 @@ export function AppointmentBoard() {
 
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
-
-  const filteredAppointments = selectedArtistId === 'all'
-    ? appointments
-    : appointments.filter(apt => apt.artistId === selectedArtistId);
 
   const allWeekAppointments = weekDates.map(date => {
     const dateStr = formatDate(date);
@@ -266,66 +270,58 @@ export function AppointmentBoard() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 mt-5">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <span className="text-gray-500 text-sm">纹身师:</span>
-              <select
-                value={selectedArtistId}
-                onChange={(e) => setSelectedArtistId(e.target.value)}
-                className="bg-ink-800 border border-ink-700 text-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
-              >
-                <option value="all">全部纹身师</option>
-                {artists.map(artist => (
-                  <option key={artist.id} value={artist.id}>
-                    {artist.name}{!artist.active ? ' (已停用)' : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="w-px h-6 bg-ink-700" />
-            
-            <div className="flex items-center gap-1 bg-ink-800 rounded-xl p-1 border border-ink-700">
-              {viewTabs.map(({ view, icon: Icon, label }) => (
-                <button
-                  key={view}
-                  onClick={() => handleViewChange(view)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    currentView === view
-                      ? 'bg-gold-500 text-ink-950 shadow-lg shadow-gold-500/25'
-                      : 'text-gray-400 hover:text-white hover:bg-ink-700'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col gap-4 mt-5">
+            <AppointmentFilters
+              filters={filters}
+              artists={artists}
+              onFilterChange={setFilter}
+              onReset={resetFilters}
+              hasActiveFilters={hasActiveFilters}
+            />
 
-            <div className="w-px h-6 bg-ink-700 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500 text-sm">总计:</span>
-              <span className="text-white font-semibold">{totalWeek} 单</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gold-500"></span>
-              <span className="text-gray-400 text-sm">今日: {totalToday}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-tattoo-red"></span>
-              <span className="text-gray-400 text-sm">待确认: {totalPending}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-gold-600"></span>
-              <span className="text-gray-400 text-sm">已确认: {totalConfirmed}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span className="text-gray-400 text-sm">已到店: {totalArrived}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
-              <span className="text-gray-400 text-sm">已完成: {totalCompleted}</span>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1 bg-ink-800 rounded-xl p-1 border border-ink-700">
+                {viewTabs.map(({ view, icon: Icon, label }) => (
+                  <button
+                    key={view}
+                    onClick={() => handleViewChange(view)}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      currentView === view
+                        ? 'bg-gold-500 text-ink-950 shadow-lg shadow-gold-500/25'
+                        : 'text-gray-400 hover:text-white hover:bg-ink-700'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="w-px h-6 bg-ink-700 hidden sm:block" />
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-sm">总计:</span>
+                <span className="text-white font-semibold">{totalWeek} 单</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-gold-500"></span>
+                <span className="text-gray-400 text-sm">今日: {totalToday}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-tattoo-red"></span>
+                <span className="text-gray-400 text-sm">待确认: {totalPending}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-gold-600"></span>
+                <span className="text-gray-400 text-sm">已确认: {totalConfirmed}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                <span className="text-gray-400 text-sm">已到店: {totalArrived}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
+                <span className="text-gray-400 text-sm">已完成: {totalCompleted}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -338,9 +334,9 @@ export function AppointmentBoard() {
 
         {currentView === 'list' && (
           <ListView
-            appointments={appointments}
+            appointments={filteredAppointments}
             artists={artists}
-            selectedArtistId={selectedArtistId}
+            selectedArtistId="all"
             onStatusChange={handleStatusChange}
             onEdit={handleEdit}
             onDelete={handleDelete}
@@ -351,9 +347,9 @@ export function AppointmentBoard() {
         {currentView === 'week' && (
           <WeekView
             currentDate={currentDate}
-            appointments={appointments}
+            appointments={filteredAppointments}
             artists={artists}
-            selectedArtistId={selectedArtistId}
+            selectedArtistId="all"
             onDateChange={setCurrentDate}
             onSlotClick={handleWeekSlotClick}
             onAppointmentClick={handleEdit}
@@ -363,9 +359,9 @@ export function AppointmentBoard() {
         {currentView === 'month' && (
           <MonthView
             currentDate={currentDate}
-            appointments={appointments}
+            appointments={filteredAppointments}
             artists={artists}
-            selectedArtistId={selectedArtistId}
+            selectedArtistId="all"
             onDateChange={setCurrentDate}
             onDateClick={handleMonthDateClick}
             onAppointmentClick={handleEdit}

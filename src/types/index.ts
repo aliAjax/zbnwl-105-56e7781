@@ -135,3 +135,19 @@ export const CALENDAR_VIEW_LABELS: Record<CalendarView, string> = {
   week: '周视图',
   month: '月视图',
 };
+
+export interface AppointmentFilters {
+  artistId: string | 'all';
+  status: AppointmentStatus | 'all';
+  depositPaid: 'all' | 'yes' | 'no';
+  customerKeyword: string;
+  hasReferenceImage: 'all' | 'yes' | 'no';
+}
+
+export const DEFAULT_FILTERS: AppointmentFilters = {
+  artistId: 'all',
+  status: 'all',
+  depositPaid: 'all',
+  customerKeyword: '',
+  hasReferenceImage: 'all',
+};
