@@ -1,9 +1,8 @@
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { Appointment, AppointmentStatus, STATUS_COLORS, TattooArtist } from '@/types';
+import { Appointment, STATUS_COLORS, TattooArtist } from '@/types';
 import {
   formatDate,
   getMonthDates,
-  getDayNameShort,
   isToday,
   isSameMonth,
   getMonthName,

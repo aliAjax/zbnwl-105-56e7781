@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Appointment, STATUS_COLORS, TattooArtist } from '@/types';
 import {
   formatDate,

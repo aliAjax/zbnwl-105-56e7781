@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 import { Appointment, AppointmentStatus, TattooArtist } from '@/types';
 import { AppointmentCard } from '@/components/AppointmentCard';
@@ -26,19 +26,25 @@ export function ListView({
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
 
-  const filteredAppointments = selectedArtistId === 'all'
-    ? appointments
-    : appointments.filter(apt => apt.artistId === selectedArtistId);
+  const filteredAppointments = useMemo(() => 
+    selectedArtistId === 'all'
+      ? appointments
+      : appointments.filter(apt => apt.artistId === selectedArtistId),
+    [appointments, selectedArtistId]
+  );
 
-  const allWeekAppointments = weekDates.map(date => {
-    const dateStr = formatDate(date);
-    const dayAppointments = filteredAppointments
-      .filter(apt => apt.date === dateStr)
-      .sort((a, b) => a.time.localeCompare(b.time));
-    return { date, dateStr, appointments: dayAppointments };
-  });
+  const allWeekAppointments = useMemo(() => 
+    weekDates.map(date => {
+      const dateStr = formatDate(date);
+      const dayAppointments = filteredAppointments
+        .filter(apt => apt.date === dateStr)
+        .sort((a, b) => a.time.localeCompare(b.time));
+      return { date, dateStr, appointments: dayAppointments };
+    }),
+    [weekDates, filteredAppointments]
+  );
 
-  const getDefaultExpandedDates = (): Set<string> => {
+  const getInitialExpandedDates = (): Set<string> => {
     const expanded = new Set<string>();
     expanded.add(todayStr);
     allWeekAppointments.forEach(d => {
@@ -49,11 +55,18 @@ export function ListView({
     return expanded;
   };
 
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(getDefaultExpandedDates());
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(getInitialExpandedDates());
 
   useEffect(() => {
-    setExpandedDates(getDefaultExpandedDates());
-  }, [appointments.length, selectedArtistId]);
+    const expanded = new Set<string>();
+    expanded.add(todayStr);
+    allWeekAppointments.forEach(d => {
+      if (d.appointments.length > 0) {
+        expanded.add(d.dateStr);
+      }
+    });
+    setExpandedDates(expanded);
+  }, [allWeekAppointments, todayStr]);
 
   const toggleDateExpand = (dateStr: string) => {
     setExpandedDates(prev => {
