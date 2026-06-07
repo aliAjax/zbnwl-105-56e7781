@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Plus, CalendarDays, ChevronDown } from 'lucide-react';
+import { Plus, CalendarDays, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -7,6 +8,7 @@ import { formatDate, getWeekDates, getDayName, isToday } from '@/utils/dateUtils
 import { Appointment, AppointmentStatus } from '@/types';
 
 export function AppointmentBoard() {
+  const navigate = useNavigate();
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -108,13 +110,22 @@ export function AppointmentBoard() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-gold-500/25"
-            >
-              <Plus className="w-5 h-5" />
-              <span>新增预约</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/today')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>今日工作台</span>
+              </button>
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-gold-500/25"
+              >
+                <Plus className="w-5 h-5" />
+                <span>新增预约</span>
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 mt-5">
