@@ -1,13 +1,13 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle } from 'lucide-react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAppointmentsRepository } from '@/storage';
 import { buildCustomerProfile } from '@/utils/customerUtils';
 import { Appointment, STATUS_LABELS, STATUS_COLORS } from '@/types';
 
 export default function CustomerProfile() {
   const { customerName } = useParams<{ customerName: string }>();
   const navigate = useNavigate();
-  const [appointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
+  const { appointments } = useAppointmentsRepository();
 
   const decodedName = customerName ? decodeURIComponent(customerName) : '';
   const profile = buildCustomerProfile(appointments, decodedName);

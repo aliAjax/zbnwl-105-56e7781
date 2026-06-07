@@ -3,7 +3,7 @@ import { Plus, LayoutDashboard, CalendarDays, Clock, Image } from 'lucide-react'
 import { useNavigate } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
 import { formatDate } from '@/utils/dateUtils';
 import { Appointment, AppointmentStatus, STATUS_LABELS, TattooArtist } from '@/types';
 
@@ -16,8 +16,8 @@ const STATUS_GROUPS: { key: AppointmentStatus; icon: typeof Clock; color: string
 
 export default function TodayWorkbench() {
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
-  const [artists] = useLocalStorage<TattooArtist[]>('tattoo_artists', []);
+  const { appointments, addAppointment, updateStatus, deleteAppointment } = useAppointmentsRepository();
+  const { artists } = useArtistsRepository();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
@@ -46,19 +46,11 @@ export default function TodayWorkbench() {
   const totalCompleted = todayAppointments.filter(apt => apt.status === 'completed').length;
 
   const handleSaveAppointment = (appointment: Appointment) => {
-    setAppointments(prev => {
-      const exists = prev.find(apt => apt.id === appointment.id);
-      if (exists) {
-        return prev.map(apt => apt.id === appointment.id ? appointment : apt);
-      }
-      return [...prev, appointment];
-    });
+    addAppointment(appointment);
   };
 
   const handleStatusChange = (id: string, status: AppointmentStatus) => {
-    setAppointments(prev =>
-      prev.map(apt => apt.id === id ? { ...apt, status } : apt)
-    );
+    updateStatus(id, status);
   };
 
   const handleEdit = (appointment: Appointment) => {
@@ -68,7 +60,7 @@ export default function TodayWorkbench() {
 
   const handleDelete = (id: string) => {
     if (confirm('确定要删除这个预约吗？')) {
-      setAppointments(prev => prev.filter(apt => apt.id !== id));
+      deleteAppointment(id);
     }
   };
 

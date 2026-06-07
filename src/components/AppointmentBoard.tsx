@@ -8,7 +8,7 @@ import { ImportConfirmModal } from '@/components/ImportExportModal';
 import { ListView } from '@/components/ListView';
 import { WeekView } from '@/components/WeekView';
 import { MonthView } from '@/components/MonthView';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
 import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS } from '@/types';
 import {
@@ -24,8 +24,8 @@ import {
 export function AppointmentBoard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
-  const [artists, setArtists] = useLocalStorage<TattooArtist[]>('tattoo_artists', []);
+  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateStatus, saveAppointments } = useAppointmentsRepository();
+  const { artists, addArtist, toggleArtistActive } = useArtistsRepository();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -78,19 +78,11 @@ export function AppointmentBoard() {
   const totalArrived = filteredWeekList.filter(apt => apt.status === 'arrived').length;
 
   const handleSaveAppointment = (appointment: Appointment) => {
-    setAppointments(prev => {
-      const exists = prev.find(apt => apt.id === appointment.id);
-      if (exists) {
-        return prev.map(apt => apt.id === appointment.id ? appointment : apt);
-      }
-      return [...prev, appointment];
-    });
+    addAppointment(appointment);
   };
 
   const handleStatusChange = (id: string, status: AppointmentStatus) => {
-    setAppointments(prev =>
-      prev.map(apt => apt.id === id ? { ...apt, status } : apt)
-    );
+    updateStatus(id, status);
   };
 
   const handleEdit = (appointment: Appointment) => {
@@ -102,7 +94,7 @@ export function AppointmentBoard() {
 
   const handleDelete = (id: string) => {
     if (confirm('确定要删除这个预约吗？')) {
-      setAppointments(prev => prev.filter(apt => apt.id !== id));
+      deleteAppointment(id);
     }
   };
 
@@ -147,7 +139,7 @@ export function AppointmentBoard() {
     if (!importDiff) return;
     
     const newAppointments = executeImport(appointments, importDiff);
-    setAppointments(newAppointments);
+    saveAppointments(newAppointments);
     setIsImportModalOpen(false);
     setImportDiff(null);
     
@@ -161,19 +153,11 @@ export function AppointmentBoard() {
   };
 
   const handleSaveArtist = (artist: TattooArtist) => {
-    setArtists(prev => {
-      const exists = prev.find(a => a.id === artist.id);
-      if (exists) {
-        return prev.map(a => a.id === artist.id ? artist : a);
-      }
-      return [...prev, artist];
-    });
+    addArtist(artist);
   };
 
   const handleToggleArtistActive = (id: string) => {
-    setArtists(prev =>
-      prev.map(a => a.id === id ? { ...a, active: !a.active } : a)
-    );
+    toggleArtistActive(id);
   };
 
   const handleMonthDateClick = (dateStr: string) => {

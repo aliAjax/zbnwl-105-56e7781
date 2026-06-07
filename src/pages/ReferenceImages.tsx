@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Image, CalendarDays, ExternalLink, Edit, ArrowLeft, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useAppointmentsRepository } from '@/storage';
 import { Appointment } from '@/types';
 import { getDayName, isToday } from '@/utils/dateUtils';
 
@@ -13,7 +13,7 @@ interface GroupedByDate {
 
 export default function ReferenceImages() {
   const navigate = useNavigate();
-  const [appointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
+  const { appointments } = useAppointmentsRepository();
 
   const appointmentsWithImages = useMemo(() => {
     return appointments.filter(
