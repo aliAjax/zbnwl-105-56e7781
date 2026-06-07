@@ -5,12 +5,12 @@ export const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
-export const getWeekDates = (): Date[] => {
+export const getWeekDates = (days: number = 8): Date[] => {
   const dates: Date[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < days; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
     dates.push(date);

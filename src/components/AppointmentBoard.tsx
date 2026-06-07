@@ -10,9 +10,8 @@ export function AppointmentBoard() {
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set([formatDate(new Date())]));
 
-  const weekDates = getWeekDates();
+  const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
 
   const allWeekAppointments = weekDates.map(date => {
@@ -23,10 +22,27 @@ export function AppointmentBoard() {
     return { date, dateStr, appointments: dayAppointments };
   });
 
-  const totalWeek = allWeekAppointments.reduce((sum, d) => sum + d.appointments.length, 0);
+  const getDefaultExpandedDates = (): Set<string> => {
+    const expanded = new Set<string>();
+    expanded.add(todayStr);
+    allWeekAppointments.forEach(d => {
+      if (d.appointments.length > 0) {
+        expanded.add(d.dateStr);
+      }
+    });
+    return expanded;
+  };
+
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(getDefaultExpandedDates());
+
+  const weekAppointmentsList = allWeekAppointments.flatMap(d => d.appointments);
+
+  const totalWeek = weekAppointmentsList.length;
   const totalToday = allWeekAppointments.find(d => d.dateStr === todayStr)?.appointments.length || 0;
-  const totalPending = appointments.filter(apt => apt.status === 'pending').length;
-  const totalCompleted = appointments.filter(apt => apt.status === 'completed').length;
+  const totalPending = weekAppointmentsList.filter(apt => apt.status === 'pending').length;
+  const totalCompleted = weekAppointmentsList.filter(apt => apt.status === 'completed').length;
+  const totalConfirmed = weekAppointmentsList.filter(apt => apt.status === 'confirmed').length;
+  const totalArrived = weekAppointmentsList.filter(apt => apt.status === 'arrived').length;
 
   const toggleDateExpand = (dateStr: string) => {
     setExpandedDates(prev => {
@@ -86,7 +102,7 @@ export function AppointmentBoard() {
                 </div>
                 <div>
                   <h1 className="font-display text-2xl font-bold text-white">纹身工作室预约看板</h1>
-                  <p className="text-gray-500 text-sm">管理未来七天预约，跟踪客户到店状态</p>
+                  <p className="text-gray-500 text-sm">管理今日及未来七天预约，跟踪客户到店状态</p>
                 </div>
               </div>
             </div>
@@ -101,7 +117,7 @@ export function AppointmentBoard() {
 
           <div className="flex flex-wrap items-center gap-4 mt-5">
             <div className="flex items-center gap-2">
-              <span className="text-gray-500 text-sm">未来七天总计:</span>
+              <span className="text-gray-500 text-sm">未来八天总计:</span>
               <span className="text-white font-semibold">{totalWeek} 单</span>
             </div>
             <div className="flex items-center gap-2">
@@ -111,6 +127,14 @@ export function AppointmentBoard() {
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-tattoo-red"></span>
               <span className="text-gray-400 text-sm">待确认: {totalPending}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-gold-600"></span>
+              <span className="text-gray-400 text-sm">已确认: {totalConfirmed}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span className="text-gray-400 text-sm">已到店: {totalArrived}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
