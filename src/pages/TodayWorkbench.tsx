@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, LayoutDashboard, CalendarDays, Clock } from 'lucide-react';
+import { Plus, LayoutDashboard, CalendarDays, Clock, Image } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
@@ -88,6 +88,13 @@ export default function TodayWorkbench() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/reference-images')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <Image className="w-4 h-4" />
+                <span>参考图管理</span>
+              </button>
               <button
                 onClick={() => navigate('/')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"

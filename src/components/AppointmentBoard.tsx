@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Plus, CalendarDays, ChevronDown, LayoutDashboard } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
@@ -9,10 +9,21 @@ import { Appointment, AppointmentStatus } from '@/types';
 
 export function AppointmentBoard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [appointments, setAppointments] = useLocalStorage<Appointment[]>('tattoo_appointments', []);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
+
+  useEffect(() => {
+    const state = location.state as { editAppointment?: Appointment } | null;
+    if (state?.editAppointment) {
+      setEditingAppointment(state.editAppointment);
+      setModalDate(state.editAppointment.date);
+      setIsModalOpen(true);
+      navigate('/', { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
 
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
@@ -111,6 +122,13 @@ export function AppointmentBoard() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/reference-images')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <Image className="w-4 h-4" />
+                <span>参考图管理</span>
+              </button>
               <button
                 onClick={() => navigate('/today')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"

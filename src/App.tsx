@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "@/pages/Home";
 import TodayWorkbench from "@/pages/TodayWorkbench";
 import CustomerProfile from "@/pages/CustomerProfile";
+import ReferenceImages from "@/pages/ReferenceImages";
 
 export default function App() {
   return (
@@ -10,6 +11,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/today" element={<TodayWorkbench />} />
         <Route path="/customer/:customerName" element={<CustomerProfile />} />
+        <Route path="/reference-images" element={<ReferenceImages />} />
         <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
       </Routes>
     </Router>
