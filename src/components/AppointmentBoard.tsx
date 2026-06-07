@@ -1,12 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image, BarChart3 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image, BarChart3, Download, Upload } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { RevenueDashboard } from '@/components/RevenueDashboard';
+import { ImportConfirmModal } from '@/components/ImportExportModal';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { formatDate, getWeekDates, getDayName, isToday } from '@/utils/dateUtils';
 import { Appointment, AppointmentStatus } from '@/types';
+import {
+  exportAppointmentsToJson,
+  downloadJsonFile,
+  generateExportFilename,
+  parseAndValidateImportData,
+  calculateImportDiff,
+  executeImport,
+  ImportDiffResult
+} from '@/utils/importExport';
 
 export function AppointmentBoard() {
   const navigate = useNavigate();
@@ -16,6 +26,9 @@ export function AppointmentBoard() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
   const [showDashboard, setShowDashboard] = useState(true);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importDiff, setImportDiff] = useState<ImportDiffResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const state = location.state as { editAppointment?: Appointment } | null;
@@ -107,6 +120,53 @@ export function AppointmentBoard() {
     setIsModalOpen(true);
   };
 
+  const handleExport = () => {
+    const jsonContent = exportAppointmentsToJson(appointments);
+    const filename = generateExportFilename();
+    downloadJsonFile(jsonContent, filename);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      const { valid, invalid } = parseAndValidateImportData(content);
+      const diff = calculateImportDiff(appointments, valid);
+      setImportDiff({ ...diff, invalid });
+      setIsImportModalOpen(true);
+    };
+    reader.onerror = () => {
+      alert('文件读取失败，请重试');
+    };
+    reader.readAsText(file);
+    
+    e.target.value = '';
+  };
+
+  const handleConfirmImport = () => {
+    if (!importDiff) return;
+    
+    const newAppointments = executeImport(appointments, importDiff);
+    setAppointments(newAppointments);
+    setIsImportModalOpen(false);
+    setImportDiff(null);
+    
+    const totalImported = importDiff.toAdd.length + importDiff.toUpdate.length;
+    alert(`导入成功！共导入 ${totalImported} 条预约记录`);
+  };
+
+  const handleCancelImport = () => {
+    setIsImportModalOpen(false);
+    setImportDiff(null);
+  };
+
   return (
     <div className="min-h-screen bg-ink-950 text-white">
       <div className="bg-ink-900/50 border-b border-ink-800 sticky top-0 z-40 backdrop-blur-sm">
@@ -123,7 +183,7 @@ export function AppointmentBoard() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <button
                 onClick={() => navigate('/reference-images')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
@@ -150,6 +210,20 @@ export function AppointmentBoard() {
                 <span>收入看板</span>
               </button>
               <button
+                onClick={handleExport}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <Download className="w-4 h-4" />
+                <span>导出数据</span>
+              </button>
+              <button
+                onClick={handleImportClick}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <Upload className="w-4 h-4" />
+                <span>导入数据</span>
+              </button>
+              <button
                 onClick={() => handleOpenModal()}
                 className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-gold-500/25"
               >
@@ -157,6 +231,13 @@ export function AppointmentBoard() {
                 <span>新增预约</span>
               </button>
             </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".json"
+              className="hidden"
+            />
           </div>
 
           <div className="flex flex-wrap items-center gap-4 mt-5">
@@ -306,6 +387,12 @@ export function AppointmentBoard() {
           setIsModalOpen(false);
           setEditingAppointment(null);
         }}
+      />
+      <ImportConfirmModal
+        isOpen={isImportModalOpen}
+        diff={importDiff}
+        onConfirm={handleConfirmImport}
+        onCancel={handleCancelImport}
       />
     </div>
   );
