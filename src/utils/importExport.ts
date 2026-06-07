@@ -1,4 +1,4 @@
-import { Appointment, AppointmentStatus, PaymentType } from '@/types';
+import { Appointment, AppointmentStatus, PaymentType, CustomerMerge } from '@/types';
 import { migrateBatchPaymentRecords } from '@/utils/paymentUtils';
 
 const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show'];
@@ -243,4 +243,153 @@ export function executeImport(
   result.push(...diff.toAdd);
 
   return result;
+}
+
+export interface FullExportData {
+  appointments: Appointment[];
+  customerMerges: CustomerMerge[];
+  exportVersion: number;
+  exportedAt: string;
+}
+
+export const EXPORT_VERSION = 1;
+
+export function exportFullDataToJson(
+  appointments: Appointment[],
+  customerMerges: CustomerMerge[]
+): string {
+  const data: FullExportData = {
+    appointments,
+    customerMerges,
+    exportVersion: EXPORT_VERSION,
+    exportedAt: new Date().toISOString(),
+  };
+  return JSON.stringify(data, null, 2);
+}
+
+export function parseFullImportData(jsonString: string): {
+  appointments: Appointment[];
+  customerMerges: CustomerMerge[];
+  errors: string[];
+} {
+  let parsedData: unknown;
+  try {
+    parsedData = JSON.parse(jsonString);
+  } catch {
+    return { appointments: [], customerMerges: [], errors: ['JSON 解析失败，请检查文件格式'] };
+  }
+
+  const errors: string[] = [];
+  let appointments: Appointment[] = [];
+  let customerMerges: CustomerMerge[] = [];
+
+  if (typeof parsedData === 'object' && parsedData !== null) {
+    const obj = parsedData as Record<string, unknown>;
+    
+    if ('appointments' in obj && Array.isArray(obj.appointments)) {
+      const aptResult = parseAndValidateImportData(JSON.stringify(obj.appointments));
+      appointments = aptResult.valid;
+      if (aptResult.invalid.length > 0) {
+        errors.push(`预约数据中有 ${aptResult.invalid.length} 条无效记录`);
+      }
+    } else if (Array.isArray(parsedData)) {
+      const aptResult = parseAndValidateImportData(jsonString);
+      appointments = aptResult.valid;
+      if (aptResult.invalid.length > 0) {
+        errors.push(`预约数据中有 ${aptResult.invalid.length} 条无效记录`);
+      }
+    } else {
+      errors.push('数据格式不正确，无法识别预约数据');
+    }
+
+    if ('customerMerges' in obj && Array.isArray(obj.customerMerges)) {
+      customerMerges = validateCustomerMerges(obj.customerMerges, errors);
+    }
+  } else if (Array.isArray(parsedData)) {
+    const aptResult = parseAndValidateImportData(jsonString);
+    appointments = aptResult.valid;
+    if (aptResult.invalid.length > 0) {
+      errors.push(`预约数据中有 ${aptResult.invalid.length} 条无效记录`);
+    }
+  } else {
+    errors.push('数据格式不正确');
+  }
+
+  return { appointments, customerMerges, errors };
+}
+
+function validateCustomerMerges(data: unknown[], errors: string[]): CustomerMerge[] {
+  const valid: CustomerMerge[] = [];
+  
+  for (let i = 0; i < data.length; i++) {
+    const item = data[i] as Record<string, unknown>;
+    const itemErrors: string[] = [];
+
+    if (typeof item !== 'object' || item === null) {
+      errors.push(`客户合并记录 [${i}]: 不是有效的对象`);
+      continue;
+    }
+
+    if (typeof item.id !== 'string' || item.id.trim() === '') {
+      itemErrors.push('字段 id 必须是非空字符串');
+    }
+
+    if (typeof item.canonicalName !== 'string' || item.canonicalName.trim() === '') {
+      itemErrors.push('字段 canonicalName 必须是非空字符串');
+    }
+
+    if (!Array.isArray(item.aliases)) {
+      itemErrors.push('字段 aliases 必须是数组');
+    }
+
+    if (typeof item.createdAt !== 'string' || isNaN(Date.parse(item.createdAt))) {
+      itemErrors.push('字段 createdAt 必须是有效的日期字符串');
+    }
+
+    if (typeof item.updatedAt !== 'string' || isNaN(Date.parse(item.updatedAt))) {
+      itemErrors.push('字段 updatedAt 必须是有效的日期字符串');
+    }
+
+    if (itemErrors.length === 0) {
+      valid.push(item as unknown as CustomerMerge);
+    } else {
+      errors.push(`客户合并记录 [${i}]: ${itemErrors.join('; ')}`);
+    }
+  }
+
+  return valid;
+}
+
+export function mergeCustomerMerges(
+  existing: CustomerMerge[],
+  imported: CustomerMerge[]
+): CustomerMerge[] {
+  const mergedMap = new Map<string, CustomerMerge>();
+
+  for (const merge of existing) {
+    mergedMap.set(merge.id, merge);
+  }
+
+  for (const merge of imported) {
+    const existingMerge = mergedMap.get(merge.id);
+    if (existingMerge) {
+      const allAliases = new Set([...existingMerge.aliases, ...merge.aliases]);
+      mergedMap.set(merge.id, {
+        ...existingMerge,
+        aliases: Array.from(allAliases),
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      mergedMap.set(merge.id, merge);
+    }
+  }
+
+  return Array.from(mergedMap.values());
+}
+
+export function generateFullExportFilename(): string {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  return `tattoo-full-data-${dateStr}-${timeStr}.json`;
 }

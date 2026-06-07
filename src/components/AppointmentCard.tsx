@@ -2,6 +2,8 @@ import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign, Fi
 import { useNavigate } from 'react-router-dom';
 import { Appointment, AppointmentStatus, STATUS_LABELS, STATUS_COLORS, PAYMENT_TYPE_LABELS, PAYMENT_TYPE_COLORS } from '@/types';
 import { calculatePaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
+import { useCustomerMergesRepository } from '@/storage';
+import { buildAliasMap, getCanonicalName } from '@/utils/customerUtils';
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -17,14 +19,18 @@ const TERMINAL_STATUSES: AppointmentStatus[] = ['completed', 'cancelled', 'no_sh
 
 export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete, index, artistName }: AppointmentCardProps) {
   const navigate = useNavigate();
+  const { customerMerges } = useCustomerMergesRepository();
   const currentStatusIndex = STATUS_FLOW.indexOf(appointment.status);
   const isTerminal = TERMINAL_STATUSES.includes(appointment.status);
   const paymentSummary = calculatePaymentSummary(appointment);
   const depositPaid = hasDepositPaid(appointment);
 
+  const aliasMap = buildAliasMap(customerMerges);
+  const canonicalName = getCanonicalName(appointment.customerName, aliasMap);
+
   const handleViewProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/customer/${encodeURIComponent(appointment.customerName)}`);
+    navigate(`/customer/${encodeURIComponent(canonicalName)}`);
   };
 
   const getNextStatus = (): AppointmentStatus | null => {

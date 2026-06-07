@@ -9,18 +9,22 @@ import { ListView } from '@/components/ListView';
 import { WeekView } from '@/components/WeekView';
 import { MonthView } from '@/components/MonthView';
 import { AppointmentFilters } from '@/components/AppointmentFilters';
-import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
+import { useAppointmentsRepository, useArtistsRepository, useCustomerMergesRepository } from '@/storage';
 import { useAppointmentFilters } from '@/hooks/useAppointmentFilters';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
 import { calculateArtistStats, formatDuration } from '@/utils/artistStats';
-import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS } from '@/types';
+import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS, CustomerMerge } from '@/types';
 import {
   exportAppointmentsToJson,
+  exportFullDataToJson,
   downloadJsonFile,
   generateExportFilename,
+  generateFullExportFilename,
   parseAndValidateImportData,
+  parseFullImportData,
   calculateImportDiff,
   executeImport,
+  mergeCustomerMerges,
   ImportDiffResult
 } from '@/utils/importExport';
 
@@ -29,6 +33,8 @@ export function AppointmentBoard() {
   const location = useLocation();
   const { appointments, addAppointment, deleteAppointment, updateStatus, saveAppointments } = useAppointmentsRepository();
   const { artists, addArtist, toggleArtistActive } = useArtistsRepository();
+  const { customerMerges, saveCustomerMerges } = useCustomerMergesRepository();
+  const [importedCustomerMerges, setImportedCustomerMerges] = useState<CustomerMerge[] | null>(null);
   const {
     filters,
     setFilter,
@@ -121,8 +127,8 @@ export function AppointmentBoard() {
   };
 
   const handleExport = () => {
-    const jsonContent = exportAppointmentsToJson(appointments);
-    const filename = generateExportFilename();
+    const jsonContent = exportFullDataToJson(appointments, customerMerges);
+    const filename = generateFullExportFilename();
     downloadJsonFile(jsonContent, filename);
   };
 
@@ -137,9 +143,16 @@ export function AppointmentBoard() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
-      const { valid, invalid } = parseAndValidateImportData(content);
-      const diff = calculateImportDiff(appointments, valid);
-      setImportDiff({ ...diff, invalid });
+      const { appointments: importedAppointments, customerMerges: importedMerges, errors } = parseFullImportData(content);
+      const diff = calculateImportDiff(appointments, importedAppointments);
+      
+      if (errors.length > 0 && diff.toAdd.length === 0 && diff.toUpdate.length === 0) {
+        alert(`导入失败：${errors.join('; ')}`);
+        return;
+      }
+      
+      setImportDiff({ ...diff, invalid: errors.map(e => ({ data: null, errors: [e] })) });
+      setImportedCustomerMerges(importedMerges);
       setIsImportModalOpen(true);
     };
     reader.onerror = () => {
@@ -155,11 +168,22 @@ export function AppointmentBoard() {
     
     const newAppointments = executeImport(appointments, importDiff);
     saveAppointments(newAppointments);
+    
+    if (importedCustomerMerges && importedCustomerMerges.length > 0) {
+      const mergedCustomerMerges = mergeCustomerMerges(customerMerges, importedCustomerMerges);
+      saveCustomerMerges(mergedCustomerMerges);
+    }
+    
     setIsImportModalOpen(false);
     setImportDiff(null);
+    setImportedCustomerMerges(null);
     
     const totalImported = importDiff.toAdd.length + importDiff.toUpdate.length;
-    alert(`导入成功！共导入 ${totalImported} 条预约记录`);
+    let message = `导入成功！共导入 ${totalImported} 条预约记录`;
+    if (importedCustomerMerges && importedCustomerMerges.length > 0) {
+      message += `，${importedCustomerMerges.length} 条客户合并记录`;
+    }
+    alert(message);
   };
 
   const handleCancelImport = () => {

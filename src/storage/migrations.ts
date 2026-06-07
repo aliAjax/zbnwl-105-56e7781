@@ -1,11 +1,12 @@
 import { Migration } from './types';
-import { Appointment, StatusHistoryEntry, PaymentRecord } from '@/types';
+import { Appointment, StatusHistoryEntry, PaymentRecord, CustomerMerge } from '@/types';
 import { generateId } from '@/utils/dateUtils';
 
-export const CURRENT_STORAGE_VERSION = 3;
+export const CURRENT_STORAGE_VERSION = 4;
 
 export const APPOINTMENTS_STORAGE_KEY = 'tattoo_appointments';
 export const ARTISTS_STORAGE_KEY = 'tattoo_artists';
+export const CUSTOMER_MERGES_STORAGE_KEY = 'tattoo_customer_merges';
 
 export const generateStatusHistoryForLegacy = (apt: Appointment): StatusHistoryEntry[] => {
   const history: StatusHistoryEntry[] = [];
@@ -96,6 +97,13 @@ export const appointmentsMigrations: Migration[] = [
       });
     },
   },
+  {
+    fromVersion: 3,
+    toVersion: 4,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
 ];
 
 export const artistsMigrations: Migration[] = [
@@ -109,6 +117,51 @@ export const artistsMigrations: Migration[] = [
   {
     fromVersion: 1,
     toVersion: 2,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+  {
+    fromVersion: 2,
+    toVersion: 3,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+  {
+    fromVersion: 3,
+    toVersion: 4,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+];
+
+export const customerMergesMigrations: Migration[] = [
+  {
+    fromVersion: 0,
+    toVersion: 1,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+  {
+    fromVersion: 1,
+    toVersion: 2,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+  {
+    fromVersion: 2,
+    toVersion: 3,
+    migrate: (data: unknown) => {
+      return data as unknown;
+    },
+  },
+  {
+    fromVersion: 3,
+    toVersion: 4,
     migrate: (data: unknown) => {
       return data as unknown;
     },

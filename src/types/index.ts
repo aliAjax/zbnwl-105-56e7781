@@ -127,8 +127,18 @@ export interface OperationReviewData {
   };
 }
 
+export interface CustomerMerge {
+  id: string;
+  canonicalName: string;
+  aliases: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CustomerProfile {
   customerName: string;
+  canonicalName: string;
+  aliases: string[];
   totalAppointments: number;
   completedAppointments: number;
   totalDepositsPaid: number;

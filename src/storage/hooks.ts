@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getAppointmentsRepository, getArtistsRepository } from './repositories';
+import { getAppointmentsRepository, getArtistsRepository, getCustomerMergesRepository } from './repositories';
 import { generateStatusHistoryForLegacy } from './migrations';
-import { Appointment, TattooArtist } from '@/types';
+import { Appointment, TattooArtist, CustomerMerge } from '@/types';
 import { RepositoryError } from './types';
 
 const ensureStatusHistory = (appointment: Appointment): Appointment => {
@@ -223,5 +223,92 @@ export function useArtistsRepository() {
     updateArtist,
     toggleArtistActive,
     clearArtists,
+  };
+}
+
+export function useCustomerMergesRepository() {
+  const [customerMerges, setCustomerMerges] = useState<CustomerMerge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<RepositoryError | null>(null);
+  const repositoryRef = useRef(getCustomerMergesRepository());
+
+  useEffect(() => {
+    const repo = repositoryRef.current;
+
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await repo.getAll();
+        setCustomerMerges(data);
+        setError(null);
+      } catch (err) {
+        setError({ operation: 'initialize', error: err as Error, timestamp: new Date().toISOString() });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+
+    const unsubscribe = repo.subscribe((data) => {
+      setCustomerMerges(data);
+    });
+
+    const unsubscribeErrors = repo.subscribeErrors((err) => {
+      setError(err);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeErrors();
+    };
+  }, []);
+
+  const saveCustomerMerges = useCallback(async (data: CustomerMerge[]) => {
+    const repo = repositoryRef.current;
+    await repo.save(data);
+  }, []);
+
+  const addCustomerMerge = useCallback(async (merge: CustomerMerge) => {
+    const repo = repositoryRef.current;
+    const current = await repo.getAll();
+    const exists = current.find(m => m.id === merge.id);
+    if (exists) {
+      const updated = current.map(m => m.id === merge.id ? merge : m);
+      await repo.save(updated);
+    } else {
+      await repo.save([...current, merge]);
+    }
+  }, []);
+
+  const updateCustomerMerge = useCallback(async (id: string, updates: Partial<CustomerMerge>) => {
+    const repo = repositoryRef.current;
+    const current = await repo.getAll();
+    const now = new Date().toISOString();
+    const updated = current.map(m => m.id === id ? { ...m, ...updates, updatedAt: now } : m);
+    await repo.save(updated);
+  }, []);
+
+  const deleteCustomerMerge = useCallback(async (id: string) => {
+    const repo = repositoryRef.current;
+    const current = await repo.getAll();
+    const filtered = current.filter(m => m.id !== id);
+    await repo.save(filtered);
+  }, []);
+
+  const clearCustomerMerges = useCallback(async () => {
+    const repo = repositoryRef.current;
+    await repo.clear();
+  }, []);
+
+  return {
+    customerMerges,
+    loading,
+    error,
+    saveCustomerMerges,
+    addCustomerMerge,
+    updateCustomerMerge,
+    deleteCustomerMerge,
+    clearCustomerMerges,
   };
 }

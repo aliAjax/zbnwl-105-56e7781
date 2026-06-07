@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle, TrendingUp, MinusCircle } from 'lucide-react';
-import { useAppointmentsRepository } from '@/storage';
-import { buildCustomerProfile } from '@/utils/customerUtils';
+import { useState } from 'react';
+import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle, TrendingUp, MinusCircle, Users, X, Plus, UserPlus, Edit2, Trash2, Save } from 'lucide-react';
+import { useAppointmentsRepository, useCustomerMergesRepository } from '@/storage';
+import { buildCustomerProfile, buildAliasMap, getCanonicalName, getAllRawCustomerNames, mergeCustomers, removeAlias, changeCanonicalName } from '@/utils/customerUtils';
 import { STATUS_LABELS, STATUS_COLORS, PAYMENT_TYPE_LABELS, PAYMENT_TYPE_COLORS } from '@/types';
 import { calculatePaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
 
@@ -9,9 +10,22 @@ export default function CustomerProfile() {
   const { customerName } = useParams<{ customerName: string }>();
   const navigate = useNavigate();
   const { appointments } = useAppointmentsRepository();
+  const { customerMerges, saveCustomerMerges } = useCustomerMergesRepository();
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showEditNameModal, setShowEditNameModal] = useState(false);
+  const [selectedToMerge, setSelectedToMerge] = useState<string[]>([]);
+  const [newCanonicalName, setNewCanonicalName] = useState('');
 
   const decodedName = customerName ? decodeURIComponent(customerName) : '';
-  const profile = buildCustomerProfile(appointments, decodedName);
+  const aliasMap = buildAliasMap(customerMerges);
+  const canonicalName = getCanonicalName(decodedName, aliasMap);
+  const profile = buildCustomerProfile(appointments, decodedName, customerMerges);
+
+  const allRawNames = getAllRawCustomerNames(appointments);
+  const availableToMerge = allRawNames.filter(name => {
+    const nameCanonical = getCanonicalName(name, aliasMap);
+    return nameCanonical !== canonicalName && name !== canonicalName;
+  });
 
   if (!profile) {
     return (
@@ -42,6 +56,30 @@ export default function CustomerProfile() {
     return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
   };
 
+  const handleMergeCustomers = () => {
+    if (selectedToMerge.length === 0) return;
+    const updatedMerges = mergeCustomers(customerMerges, canonicalName, selectedToMerge);
+    saveCustomerMerges(updatedMerges);
+    setSelectedToMerge([]);
+    setShowMergeModal(false);
+  };
+
+  const handleRemoveAlias = (alias: string) => {
+    if (confirm(`确定要移除别名 "${alias}" 吗？`)) {
+      const updatedMerges = removeAlias(customerMerges, canonicalName, alias);
+      saveCustomerMerges(updatedMerges);
+    }
+  };
+
+  const handleChangeCanonicalName = () => {
+    if (!newCanonicalName.trim()) return;
+    const updatedMerges = changeCanonicalName(customerMerges, canonicalName, newCanonicalName.trim());
+    saveCustomerMerges(updatedMerges);
+    setNewCanonicalName('');
+    setShowEditNameModal(false);
+    navigate(`/customer/${encodeURIComponent(newCanonicalName.trim())}`);
+  };
+
   return (
     <div className="min-h-screen bg-ink-950 text-white">
       <div className="bg-ink-900/50 border-b border-ink-800 sticky top-0 z-40 backdrop-blur-sm">
@@ -59,7 +97,19 @@ export default function CustomerProfile() {
                 <User className="w-6 h-6 text-ink-950" />
               </div>
               <div>
-                <h1 className="font-display text-2xl font-bold text-white">{profile.customerName}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-display text-2xl font-bold text-white">{profile.canonicalName}</h1>
+                  <button
+                    onClick={() => {
+                      setNewCanonicalName(profile.canonicalName);
+                      setShowEditNameModal(true);
+                    }}
+                    className="p-1.5 text-gray-400 hover:text-gold-400 hover:bg-ink-800 rounded-lg transition-colors"
+                    title="修改客户名称"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </div>
                 <p className="text-gray-500 text-sm">客户档案</p>
               </div>
             </div>
@@ -68,6 +118,60 @@ export default function CustomerProfile() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {profile.aliases.length > 0 && (
+          <div className="bg-ink-800/30 rounded-2xl border border-ink-700 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-gold-500" />
+                <h2 className="font-display text-lg font-semibold text-white">客户别名</h2>
+              </div>
+              <button
+                onClick={() => setShowMergeModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 rounded-lg text-sm font-medium transition-colors border border-gold-500/30"
+              >
+                <UserPlus className="w-4 h-4" />
+                合并客户
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {profile.aliases.map((alias, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-ink-700/50 text-gray-300 rounded-lg text-sm border border-ink-600 group"
+                >
+                  <span>{alias}</span>
+                  <button
+                    onClick={() => handleRemoveAlias(alias)}
+                    className="p-0.5 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="移除别名"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {profile.aliases.length === 0 && (
+          <div className="bg-ink-800/30 rounded-2xl border border-ink-700 p-5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-gold-500" />
+                <h2 className="font-display text-lg font-semibold text-white">客户别名</h2>
+              </div>
+              <button
+                onClick={() => setShowMergeModal(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gold-500/20 hover:bg-gold-500/30 text-gold-400 rounded-lg text-sm font-medium transition-colors border border-gold-500/30"
+              >
+                <UserPlus className="w-4 h-4" />
+                合并客户
+              </button>
+            </div>
+            <p className="text-gray-500 text-sm mt-2">暂无别名，点击"合并客户"将多个昵称合并为同一客户</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <div className="bg-ink-800/50 rounded-xl border border-ink-700 p-4">
             <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
@@ -198,6 +302,11 @@ export default function CustomerProfile() {
                   </div>
                   <div className="text-gray-400 text-sm">{apt.time}</div>
                 </div>
+                {apt.customerName !== profile.canonicalName && (
+                  <div className="mb-2 text-xs text-gray-500">
+                    原始昵称: <span className="text-gray-400">{apt.customerName}</span>
+                  </div>
+                )}
                 <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-gold-600" />
@@ -241,6 +350,130 @@ export default function CustomerProfile() {
           </div>
         </div>
       </div>
+
+      {showMergeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowMergeModal(false)} />
+          <div className="relative bg-ink-800 rounded-2xl border border-ink-700 w-full max-w-lg max-h-[90vh] overflow-y-auto animate-scale-in shadow-2xl">
+            <div className="sticky top-0 bg-ink-800 border-b border-ink-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold text-white">合并客户</h2>
+              <button
+                onClick={() => setShowMergeModal(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-ink-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-ink-900/50 border border-ink-700 rounded-xl p-4">
+                <p className="text-gray-400 text-sm">将选中的客户合并到</p>
+                <p className="text-white font-medium text-lg mt-1">{profile.canonicalName}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-sm mb-3">选择要合并的客户昵称：</p>
+                {availableToMerge.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {availableToMerge.map(name => (
+                      <label
+                        key={name}
+                        className="flex items-center gap-3 p-3 bg-ink-900/50 rounded-lg border border-ink-700 hover:border-ink-600 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedToMerge.includes(name)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedToMerge([...selectedToMerge, name]);
+                            } else {
+                              setSelectedToMerge(selectedToMerge.filter(n => n !== name));
+                            }
+                          }}
+                          className="w-4 h-4 rounded border-ink-600 bg-ink-800 text-gold-500 focus:ring-gold-500 focus:ring-offset-0"
+                        />
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span className="text-white">{name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-sm">没有可合并的其他客户</p>
+                )}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowMergeModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-ink-700 hover:bg-ink-600 text-gray-300 rounded-lg font-medium transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleMergeCustomers}
+                  disabled={selectedToMerge.length === 0}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                    selectedToMerge.length > 0
+                      ? 'bg-gold-500 hover:bg-gold-400 text-ink-950'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  合并 ({selectedToMerge.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowEditNameModal(false)} />
+          <div className="relative bg-ink-800 rounded-2xl border border-ink-700 w-full max-w-md animate-scale-in shadow-2xl">
+            <div className="sticky top-0 bg-ink-800 border-b border-ink-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-display text-xl font-semibold text-white">修改客户名称</h2>
+              <button
+                onClick={() => setShowEditNameModal(false)}
+                className="p-2 text-gray-400 hover:text-white hover:bg-ink-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm block mb-2">新的客户名称</label>
+                <input
+                  type="text"
+                  value={newCanonicalName}
+                  onChange={(e) => setNewCanonicalName(e.target.value)}
+                  placeholder="输入新的客户名称"
+                  className="w-full px-4 py-2.5 bg-ink-900/50 border border-ink-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-gold-500 transition-colors"
+                />
+              </div>
+              <p className="text-gray-500 text-sm">
+                原名称 "{profile.canonicalName}" 将变为别名
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowEditNameModal(false)}
+                  className="flex-1 px-4 py-2.5 bg-ink-700 hover:bg-ink-600 text-gray-300 rounded-lg font-medium transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleChangeCanonicalName}
+                  disabled={!newCanonicalName.trim() || newCanonicalName.trim() === profile.canonicalName}
+                  className={`flex-1 px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
+                    newCanonicalName.trim() && newCanonicalName.trim() !== profile.canonicalName
+                      ? 'bg-gold-500 hover:bg-gold-400 text-ink-950'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <Save className="w-4 h-4" />
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
