@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Calendar, List, Grid, TrendingUp } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Calendar, List, Grid, TrendingUp, Clock, AlertCircle, DollarSign } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { ArtistModal } from '@/components/ArtistModal';
@@ -12,6 +12,7 @@ import { AppointmentFilters } from '@/components/AppointmentFilters';
 import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
 import { useAppointmentFilters } from '@/hooks/useAppointmentFilters';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
+import { calculateArtistStats, formatDuration } from '@/utils/artistStats';
 import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS } from '@/types';
 import {
   exportAppointmentsToJson,
@@ -60,6 +61,16 @@ export function AppointmentBoard() {
 
   const weekDates = getWeekDates(8);
   const todayStr = formatDate(new Date());
+
+  const selectedArtist = useMemo(() => {
+    if (filters.artistId === 'all') return null;
+    return artists.find(a => a.id === filters.artistId) || null;
+  }, [filters.artistId, artists]);
+
+  const selectedArtistStats = useMemo(() => {
+    if (!selectedArtist) return null;
+    return calculateArtistStats(appointments, selectedArtist, 8);
+  }, [appointments, selectedArtist]);
 
   const allWeekAppointments = weekDates.map(date => {
     const dateStr = formatDate(date);
@@ -279,6 +290,52 @@ export function AppointmentBoard() {
               hasActiveFilters={hasActiveFilters}
             />
 
+            {selectedArtist && selectedArtistStats && (
+              <div className="bg-gold-500/10 border border-gold-500/30 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center">
+                      <Users className="w-5 h-5 text-ink-950" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-white">{selectedArtist.name} - 未来8天概览</div>
+                      <div className="text-sm text-gray-400">{selectedArtist.specialty || '纹身师'}</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="flex items-center gap-2 p-2 bg-ink-800/50 rounded-lg">
+                    <Calendar className="w-4 h-4 text-gold-400" />
+                    <div>
+                      <div className="text-white font-semibold">{selectedArtistStats.appointmentCount}</div>
+                      <div className="text-xs text-gray-500">预约数</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-ink-800/50 rounded-lg">
+                    <Clock className="w-4 h-4 text-blue-400" />
+                    <div>
+                      <div className="text-white font-semibold">{formatDuration(selectedArtistStats.totalDuration)}</div>
+                      <div className="text-xs text-gray-500">总工时</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-ink-800/50 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-tattoo-red" />
+                    <div>
+                      <div className="text-white font-semibold">{selectedArtistStats.pendingCount}</div>
+                      <div className="text-xs text-gray-500">待确认</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 bg-ink-800/50 rounded-lg">
+                    <DollarSign className="w-4 h-4 text-yellow-400" />
+                    <div>
+                      <div className="text-white font-semibold">{selectedArtistStats.unpaidDepositCount}</div>
+                      <div className="text-xs text-gray-500">未付定金</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-1 bg-ink-800 rounded-xl p-1 border border-ink-700">
                 {viewTabs.map(({ view, icon: Icon, label }) => (
@@ -385,6 +442,7 @@ export function AppointmentBoard() {
       <ArtistModal
         isOpen={isArtistModalOpen}
         artists={artists}
+        appointments={appointments}
         onSave={handleSaveArtist}
         onToggleActive={handleToggleArtistActive}
         onClose={() => setIsArtistModalOpen(false)}

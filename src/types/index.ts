@@ -151,3 +151,16 @@ export const DEFAULT_FILTERS: AppointmentFilters = {
   customerKeyword: '',
   hasReferenceImage: 'all',
 };
+
+export interface ArtistStats {
+  artistId: string;
+  appointmentCount: number;
+  totalDuration: number;
+  pendingCount: number;
+  unpaidDepositCount: number;
+  futureAppointmentCount: number;
+}
+
+export interface ArtistStatsSummary {
+  [artistId: string]: ArtistStats;
+}

@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, User, Phone, Briefcase, Check, X as XIcon, Edit2 } from 'lucide-react';
-import { TattooArtist } from '@/types';
+import { useState, useEffect, useMemo } from 'react';
+import { X, Plus, User, Phone, Briefcase, Check, X as XIcon, Edit2, Clock, AlertCircle, DollarSign, Calendar } from 'lucide-react';
+import { TattooArtist, Appointment } from '@/types';
 import { generateId } from '@/utils/dateUtils';
+import { calculateAllArtistsStats, formatDuration, hasFutureAppointments } from '@/utils/artistStats';
 
 interface ArtistModalProps {
   isOpen: boolean;
   artists: TattooArtist[];
+  appointments: Appointment[];
   onSave: (artist: TattooArtist) => void;
   onToggleActive: (id: string) => void;
   onClose: () => void;
@@ -17,7 +19,7 @@ const initialFormData = {
   specialty: '',
 };
 
-export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }: ArtistModalProps) {
+export function ArtistModal({ isOpen, artists, appointments, onSave, onToggleActive, onClose }: ArtistModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editingArtist, setEditingArtist] = useState<TattooArtist | null>(null);
@@ -29,6 +31,10 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }
       setEditingArtist(null);
     }
   }, [isOpen]);
+
+  const artistsStats = useMemo(() => {
+    return calculateAllArtistsStats(appointments, artists, 8);
+  }, [appointments, artists]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -74,6 +80,18 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }
     setEditingArtist(null);
     setFormData(initialFormData);
     setErrors({});
+  };
+
+  const handleToggleActiveWithConfirm = (id: string) => {
+    const artist = artists.find(a => a.id === id);
+    if (artist?.active && hasFutureAppointments(appointments, id)) {
+      const futureCount = artistsStats[id]?.futureAppointmentCount || 0;
+      const confirmed = window.confirm(
+        `该纹身师还有 ${futureCount} 个未来预约未完成，确定要停用吗？停用后将无法为其安排新预约。`
+      );
+      if (!confirmed) return;
+    }
+    onToggleActive(id);
   };
 
   if (!isOpen) return null;
@@ -183,51 +201,86 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }
               </div>
             ) : (
               <div className="space-y-3">
-                {activeArtists.map((artist) => (
-                  <div
-                    key={artist.id}
-                    className="bg-ink-900/50 rounded-xl border border-ink-700 p-4 flex items-center justify-between hover:border-ink-600 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center">
-                        <User className="w-6 h-6 text-ink-950" />
+                {activeArtists.map((artist) => {
+                  const stats = artistsStats[artist.id];
+                  return (
+                    <div
+                      key={artist.id}
+                      className="bg-ink-900/50 rounded-xl border border-ink-700 p-4 hover:border-ink-600 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gold-500 to-gold-700 flex items-center justify-center">
+                            <User className="w-6 h-6 text-ink-950" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-white">{artist.name}</div>
+                            <div className="text-sm text-gray-400 flex items-center gap-3">
+                              {artist.specialty && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3" />
+                                  {artist.specialty}
+                                </span>
+                              )}
+                              {artist.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {artist.phone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleEdit(artist)}
+                            className="p-2 text-gray-400 hover:text-gold-500 hover:bg-ink-700 rounded-lg transition-colors"
+                            title="编辑"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleActiveWithConfirm(artist.id)}
+                            className="p-2 text-gray-400 hover:text-yellow-500 hover:bg-ink-700 rounded-lg transition-colors"
+                            title="停用"
+                          >
+                            <XIcon className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-white">{artist.name}</div>
-                        <div className="text-sm text-gray-400 flex items-center gap-3">
-                          {artist.specialty && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="w-3 h-3" />
-                              {artist.specialty}
-                            </span>
-                          )}
-                          {artist.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {artist.phone}
-                            </span>
-                          )}
+                      <div className="grid grid-cols-4 gap-2 pt-3 border-t border-ink-700/50">
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/50 rounded-lg">
+                          <div className="flex items-center gap-1 text-gold-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.appointmentCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">预约数</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/50 rounded-lg">
+                          <div className="flex items-center gap-1 text-blue-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{formatDuration(stats?.totalDuration || 0)}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">总工时</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/50 rounded-lg">
+                          <div className="flex items-center gap-1 text-tattoo-red">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.pendingCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">待确认</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/50 rounded-lg">
+                          <div className="flex items-center gap-1 text-yellow-400">
+                            <DollarSign className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.unpaidDepositCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">未付定金</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleEdit(artist)}
-                        className="p-2 text-gray-400 hover:text-gold-500 hover:bg-ink-700 rounded-lg transition-colors"
-                        title="编辑"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => onToggleActive(artist.id)}
-                        className="p-2 text-gray-400 hover:text-yellow-500 hover:bg-ink-700 rounded-lg transition-colors"
-                        title="停用"
-                      >
-                        <XIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -238,38 +291,73 @@ export function ArtistModal({ isOpen, artists, onSave, onToggleActive, onClose }
                 已停用 ({inactiveArtists.length})
               </h3>
               <div className="space-y-3">
-                {inactiveArtists.map((artist) => (
-                  <div
-                    key={artist.id}
-                    className="bg-ink-900/30 rounded-xl border border-ink-700/50 p-4 flex items-center justify-between opacity-60"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-ink-700 flex items-center justify-center">
-                        <User className="w-6 h-6 text-gray-500" />
+                {inactiveArtists.map((artist) => {
+                  const stats = artistsStats[artist.id];
+                  return (
+                    <div
+                      key={artist.id}
+                      className="bg-ink-900/30 rounded-xl border border-ink-700/50 p-4 opacity-60"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-ink-700 flex items-center justify-center">
+                            <User className="w-6 h-6 text-gray-500" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-400">{artist.name}</div>
+                            <div className="text-sm text-gray-500 flex items-center gap-3">
+                              {artist.specialty && (
+                                <span className="flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3" />
+                                  {artist.specialty}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onToggleActive(artist.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/30 transition-colors"
+                          >
+                            <Check className="w-4 h-4" />
+                            启用
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-medium text-gray-400">{artist.name}</div>
-                        <div className="text-sm text-gray-500 flex items-center gap-3">
-                          {artist.specialty && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="w-3 h-3" />
-                              {artist.specialty}
-                            </span>
-                          )}
+                      <div className="grid grid-cols-4 gap-2 pt-3 border-t border-ink-700/30">
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/30 rounded-lg">
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.appointmentCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-600">预约数</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/30 rounded-lg">
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <Clock className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{formatDuration(stats?.totalDuration || 0)}</span>
+                          </div>
+                          <span className="text-xs text-gray-600">总工时</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/30 rounded-lg">
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.pendingCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-600">待确认</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-1 p-2 bg-ink-800/30 rounded-lg">
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <DollarSign className="w-3.5 h-3.5" />
+                            <span className="text-sm font-semibold">{stats?.unpaidDepositCount || 0}</span>
+                          </div>
+                          <span className="text-xs text-gray-600">未付定金</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onToggleActive(artist.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/30 transition-colors"
-                      >
-                        <Check className="w-4 h-4" />
-                        启用
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
