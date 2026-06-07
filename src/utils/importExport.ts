@@ -89,7 +89,7 @@ export function parseAndValidateImportData(jsonString: string): ImportValidation
   let parsedData: unknown;
   try {
     parsedData = JSON.parse(jsonString);
-  } catch (e) {
+  } catch {
     return {
       valid: [],
       invalid: [{ data: jsonString, errors: ['JSON 解析失败，请检查文件格式'] }]
