@@ -254,6 +254,7 @@ export function AppointmentBoard() {
         isOpen={isModalOpen}
         editingAppointment={editingAppointment}
         selectedDate={modalDate}
+        appointments={appointments}
         onSave={handleSaveAppointment}
         onClose={() => {
           setIsModalOpen(false);

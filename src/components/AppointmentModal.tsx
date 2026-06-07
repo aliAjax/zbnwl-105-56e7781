@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
 import { Appointment, AppointmentStatus } from '@/types';
-import { generateId } from '@/utils/dateUtils';
+import { generateId, getTimeSlot, isTimeOverlap, minutesToTime } from '@/utils/dateUtils';
 
 interface AppointmentModalProps {
   isOpen: boolean;
   editingAppointment?: Appointment | null;
   selectedDate: string;
+  appointments: Appointment[];
   onSave: (appointment: Appointment) => void;
   onClose: () => void;
 }
@@ -22,9 +23,12 @@ const initialFormData = {
   notes: '',
 };
 
-export function AppointmentModal({ isOpen, editingAppointment, selectedDate, onSave, onClose }: AppointmentModalProps) {
+export function AppointmentModal({ isOpen, editingAppointment, selectedDate, appointments, onSave, onClose }: AppointmentModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showConflictWarning, setShowConflictWarning] = useState(false);
+  const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
+  const [pendingAppointment, setPendingAppointment] = useState<Appointment | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -46,6 +50,9 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, onS
         });
       }
       setErrors({});
+      setShowConflictWarning(false);
+      setConflictingAppointments([]);
+      setPendingAppointment(null);
     }
   }, [isOpen, editingAppointment, selectedDate]);
 
@@ -69,6 +76,18 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, onS
     return Object.keys(newErrors).length === 0;
   };
 
+  const findConflictingAppointments = (appointment: Appointment): Appointment[] => {
+    const currentSlot = getTimeSlot(appointment.time, appointment.duration);
+    
+    return appointments.filter(apt => {
+      if (apt.id === appointment.id) return false;
+      if (apt.date !== appointment.date) return false;
+      
+      const aptSlot = getTimeSlot(apt.time, apt.duration);
+      return isTimeOverlap(currentSlot, aptSlot);
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -88,8 +107,30 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, onS
       createdAt: editingAppointment?.createdAt || new Date().toISOString(),
     };
 
+    const conflicts = findConflictingAppointments(appointment);
+    
+    if (conflicts.length > 0) {
+      setConflictingAppointments(conflicts);
+      setPendingAppointment(appointment);
+      setShowConflictWarning(true);
+      return;
+    }
+
     onSave(appointment);
     onClose();
+  };
+
+  const handleConfirmSave = () => {
+    if (pendingAppointment) {
+      onSave(pendingAppointment);
+      onClose();
+    }
+  };
+
+  const handleCancelConflict = () => {
+    setShowConflictWarning(false);
+    setConflictingAppointments([]);
+    setPendingAppointment(null);
   };
 
   if (!isOpen) return null;
@@ -254,6 +295,77 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, onS
           </div>
         </form>
       </div>
+
+      {showConflictWarning && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={handleCancelConflict} />
+          
+          <div className="relative bg-ink-800 rounded-2xl border border-tattoo-red/50 w-full max-w-md shadow-2xl animate-scale-in">
+            <div className="px-6 py-5 border-b border-ink-700">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-tattoo-red/20 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-tattoo-red" />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg font-semibold text-white">预约时间冲突</h3>
+                  <p className="text-gray-400 text-sm">该时间段已有其他预约</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-5">
+              <p className="text-gray-300 text-sm mb-4">以下预约与当前预约时间重叠：</p>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {conflictingAppointments.map((apt) => {
+                  const endTime = minutesToTime(
+                    (parseInt(apt.time.split(':')[0]) * 60 + parseInt(apt.time.split(':')[1])) + apt.duration * 60
+                  );
+                  return (
+                    <div
+                      key={apt.id}
+                      className="bg-ink-900/50 border border-ink-700 rounded-lg p-3"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-medium text-white">{apt.customerName}</span>
+                        <span className="text-xs px-2 py-0.5 bg-tattoo-red/20 text-tattoo-red rounded-full">
+                          冲突
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-400">
+                        <span>时间: {apt.time} - {endTime}</span>
+                        <span className="mx-2">|</span>
+                        <span>时长: {apt.duration}小时</span>
+                      </div>
+                      {apt.bodyPart && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          部位: {apt.bodyPart}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-ink-700 flex gap-3">
+              <button
+                type="button"
+                onClick={handleCancelConflict}
+                className="flex-1 px-4 py-2.5 bg-ink-700 hover:bg-ink-600 text-gray-300 rounded-lg font-medium transition-colors"
+              >
+                返回修改
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmSave}
+                className="flex-1 px-4 py-2.5 bg-tattoo-red hover:bg-tattoo-red/90 text-white rounded-lg font-medium transition-colors"
+              >
+                强制保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

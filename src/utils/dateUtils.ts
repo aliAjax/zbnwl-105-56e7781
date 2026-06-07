@@ -32,3 +32,29 @@ export const isToday = (dateStr: string): boolean => {
 export const generateId = (): string => {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 };
+
+export const timeToMinutes = (time: string): number => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+export const minutesToTime = (minutes: number): string => {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
+
+export interface TimeSlot {
+  startTime: number;
+  endTime: number;
+}
+
+export const getTimeSlot = (time: string, duration: number): TimeSlot => {
+  const startTime = timeToMinutes(time);
+  const endTime = startTime + duration * 60;
+  return { startTime, endTime };
+};
+
+export const isTimeOverlap = (slot1: TimeSlot, slot2: TimeSlot): boolean => {
+  return slot1.startTime < slot2.endTime && slot1.endTime > slot2.startTime;
+};
