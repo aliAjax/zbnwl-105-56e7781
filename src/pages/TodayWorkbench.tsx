@@ -5,7 +5,7 @@ import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { useAppointmentsRepository, useArtistsRepository } from '@/storage';
 import { formatDate } from '@/utils/dateUtils';
-import { Appointment, AppointmentStatus, STATUS_LABELS, TattooArtist } from '@/types';
+import { Appointment, AppointmentStatus, STATUS_LABELS } from '@/types';
 
 const STATUS_GROUPS: { key: AppointmentStatus; icon: typeof Clock; color: string }[] = [
   { key: 'pending', icon: Clock, color: 'text-tattoo-red border-tattoo-red/30 bg-tattoo-red/10' },

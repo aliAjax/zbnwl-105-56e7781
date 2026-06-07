@@ -1,5 +1,4 @@
 import { IRepository, StorageContainer, StorageMetadata, Migration, RepositoryError } from './types';
-import { CURRENT_STORAGE_VERSION } from './migrations';
 
 interface LocalStorageRepositoryOptions<T> {
   key: string;

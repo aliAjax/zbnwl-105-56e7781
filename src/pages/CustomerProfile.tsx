@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle } from 'lucide-react';
 import { useAppointmentsRepository } from '@/storage';
 import { buildCustomerProfile } from '@/utils/customerUtils';
-import { Appointment, STATUS_LABELS, STATUS_COLORS } from '@/types';
+import { STATUS_LABELS, STATUS_COLORS } from '@/types';
 
 export default function CustomerProfile() {
   const { customerName } = useParams<{ customerName: string }>();

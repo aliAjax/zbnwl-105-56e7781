@@ -24,7 +24,7 @@ import {
 export function AppointmentBoard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { appointments, addAppointment, updateAppointment, deleteAppointment, updateStatus, saveAppointments } = useAppointmentsRepository();
+  const { appointments, addAppointment, deleteAppointment, updateStatus, saveAppointments } = useAppointmentsRepository();
   const { artists, addArtist, toggleArtistActive } = useArtistsRepository();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isArtistModalOpen, setIsArtistModalOpen] = useState(false);
