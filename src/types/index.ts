@@ -9,6 +9,8 @@ export interface Appointment {
   duration: number;
   referenceImage?: string;
   depositPaid: boolean;
+  depositAmount?: number;
+  estimatedBalance?: number;
   notes?: string;
   status: AppointmentStatus;
   createdAt: string;

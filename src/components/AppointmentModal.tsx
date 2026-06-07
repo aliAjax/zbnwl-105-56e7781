@@ -20,6 +20,8 @@ const initialFormData = {
   duration: 2,
   referenceImage: '',
   depositPaid: false,
+  depositAmount: 0,
+  estimatedBalance: 0,
   notes: '',
 };
 
@@ -41,6 +43,8 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
           duration: editingAppointment.duration,
           referenceImage: editingAppointment.referenceImage || '',
           depositPaid: editingAppointment.depositPaid,
+          depositAmount: editingAppointment.depositAmount || 0,
+          estimatedBalance: editingAppointment.estimatedBalance || 0,
           notes: editingAppointment.notes || '',
         });
       } else {
@@ -102,6 +106,8 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
       duration: formData.duration,
       referenceImage: formData.referenceImage.trim() || undefined,
       depositPaid: formData.depositPaid,
+      depositAmount: formData.depositAmount || undefined,
+      estimatedBalance: formData.estimatedBalance || undefined,
       notes: formData.notes.trim() || undefined,
       status: editingAppointment?.status || ('pending' as AppointmentStatus),
       createdAt: editingAppointment?.createdAt || new Date().toISOString(),
@@ -263,6 +269,37 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
             <label htmlFor="depositPaid" className="text-sm text-gray-300 cursor-pointer">
               定金已支付
             </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                定金金额 (元)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={formData.depositAmount}
+                onChange={(e) => setFormData({ ...formData, depositAmount: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2.5 bg-ink-900 border border-ink-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                placeholder="输入定金金额"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                预计尾款 (元)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={formData.estimatedBalance}
+                onChange={(e) => setFormData({ ...formData, estimatedBalance: parseFloat(e.target.value) || 0 })}
+                className="w-full px-4 py-2.5 bg-ink-900 border border-ink-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-gold-500/50 focus:border-gold-500 transition-all"
+                placeholder="输入预计尾款"
+              />
+            </div>
           </div>
 
           <div>

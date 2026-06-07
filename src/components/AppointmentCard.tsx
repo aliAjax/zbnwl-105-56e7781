@@ -87,7 +87,16 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
           <span className={appointment.depositPaid ? 'text-emerald-400' : 'text-gray-500'}>
             {appointment.depositPaid ? '定金已付' : '定金未付'}
           </span>
+          {appointment.depositAmount !== undefined && appointment.depositAmount > 0 && (
+            <span className="text-gold-500 font-medium">¥{appointment.depositAmount}</span>
+          )}
         </div>
+        {appointment.estimatedBalance !== undefined && appointment.estimatedBalance > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">预计尾款:</span>
+            <span className="text-blue-400">¥{appointment.estimatedBalance}</span>
+          </div>
+        )}
         {appointment.notes && (
           <div className="text-gray-400 text-sm bg-ink-900/50 rounded-lg p-3 border border-ink-700">
             <p className="text-xs text-gray-500 mb-1">备注</p>

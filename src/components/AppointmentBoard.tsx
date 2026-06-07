@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image } from 'lucide-react';
+import { Plus, CalendarDays, ChevronDown, LayoutDashboard, Image, BarChart3 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentCard } from '@/components/AppointmentCard';
 import { AppointmentModal } from '@/components/AppointmentModal';
+import { RevenueDashboard } from '@/components/RevenueDashboard';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { formatDate, getWeekDates, getDayName, isToday } from '@/utils/dateUtils';
 import { Appointment, AppointmentStatus } from '@/types';
@@ -14,6 +15,7 @@ export function AppointmentBoard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
+  const [showDashboard, setShowDashboard] = useState(true);
 
   useEffect(() => {
     const state = location.state as { editAppointment?: Appointment } | null;
@@ -137,6 +139,17 @@ export function AppointmentBoard() {
                 <span>今日工作台</span>
               </button>
               <button
+                onClick={() => setShowDashboard(!showDashboard)}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 border ${
+                  showDashboard
+                    ? 'bg-gold-500/20 text-gold-400 border-gold-500/50'
+                    : 'bg-ink-800 hover:bg-ink-700 text-gray-300 border-ink-700'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4" />
+                <span>收入看板</span>
+              </button>
+              <button
                 onClick={() => handleOpenModal()}
                 className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-xl font-medium transition-all duration-300 hover:shadow-lg hover:shadow-gold-500/25"
               >
@@ -176,6 +189,10 @@ export function AppointmentBoard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {showDashboard && (
+          <RevenueDashboard appointments={appointments} />
+        )}
+
         {allWeekAppointments.map(({ date, dateStr, appointments: dayApts }, dayIndex) => {
           const isExpanded = expandedDates.has(dateStr);
           const isTodayDate = isToday(dateStr);
