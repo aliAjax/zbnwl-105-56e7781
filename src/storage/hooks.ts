@@ -75,18 +75,24 @@ export function useAppointmentsRepository() {
     const current = await repo.getAll();
     const existing = current.find(apt => apt.id === id);
     
-    let finalUpdates = { ...updates };
+    const finalUpdates = { ...updates };
     
-    if (updates.status && existing && updates.status !== existing.status) {
-      const newHistoryEntry = {
-        status: updates.status,
-        timestamp: new Date().toISOString(),
-        note: '状态变更',
-      };
-      finalUpdates.statusHistory = [
-        ...(existing.statusHistory || []),
-        newHistoryEntry,
-      ];
+    if (updates.status && existing) {
+      const lastStatus = existing.statusHistory?.length > 0
+        ? existing.statusHistory[existing.statusHistory.length - 1].status
+        : existing.status;
+      
+      if (updates.status !== lastStatus) {
+        const newHistoryEntry = {
+          status: updates.status,
+          timestamp: new Date().toISOString(),
+          note: existing.status === updates.status ? '状态更新' : `从${existing.status}变更为${updates.status}`,
+        };
+        finalUpdates.statusHistory = [
+          ...(existing.statusHistory || []),
+          newHistoryEntry,
+        ];
+      }
     }
 
     const updated = current.map(apt => apt.id === id ? { ...apt, ...finalUpdates } : apt);

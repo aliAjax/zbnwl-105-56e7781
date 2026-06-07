@@ -18,7 +18,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAppointmentsRepository } from '@/storage';
 import { generateOperationReview, ANOMALY_TYPE_LABELS, REMINDER_TYPE_LABELS } from '@/utils/operationReview';
-import { formatDate } from '@/utils/dateUtils';
 import { STATUS_COLORS, STATUS_LABELS } from '@/types';
 
 const SEVERITY_COLORS = {
@@ -47,13 +46,39 @@ const PRIORITY_LABELS = {
 
 export default function OperationReview() {
   const navigate = useNavigate();
-  const { appointments } = useAppointmentsRepository();
+  const { appointments, updateAppointment } = useAppointmentsRepository();
   const [days, setDays] = useState(30);
   const [activeTab, setActiveTab] = useState<'overview' | 'trend' | 'anomalies' | 'reminders'>('overview');
+  const [dismissedReminders, setDismissedReminders] = useState<Set<string>>(new Set());
 
   const reviewData = useMemo(() => {
-    return generateOperationReview(appointments, days);
-  }, [appointments, days]);
+    const data = generateOperationReview(appointments, days);
+    data.reminders = data.reminders.filter(r => !dismissedReminders.has(r.id));
+    return data;
+  }, [appointments, days, dismissedReminders]);
+
+  const handleMarkDepositPaid = async (appointmentId: string) => {
+    await updateAppointment(appointmentId, { depositPaid: true });
+  };
+
+  const handleConfirmAppointment = async (appointmentId: string) => {
+    await updateAppointment(appointmentId, { status: 'confirmed' });
+  };
+
+  const handleMarkArrived = async (appointmentId: string) => {
+    await updateAppointment(appointmentId, { status: 'arrived' });
+  };
+
+  const handleDismissReminder = (reminderId: string) => {
+    setDismissedReminders(prev => new Set(prev).add(reminderId));
+  };
+
+  const handleEditAppointment = (appointmentId: string) => {
+    const apt = appointments.find(a => a.id === appointmentId);
+    if (apt) {
+      navigate('/', { state: { editAppointment: apt } });
+    }
+  };
 
   const StatCard = ({
     title,
@@ -393,8 +418,37 @@ export default function OperationReview() {
                   )}
                 </div>
               </div>
-              {anomaly.actionable && anomaly.actionLabel && (
-                <button className="px-4 py-2 bg-gold-500/20 text-gold-400 hover:bg-gold-500/30 rounded-lg text-sm font-medium transition-colors">
+              {anomaly.actionable && anomaly.appointmentId && (
+                <div className="flex gap-2">
+                  {anomaly.type === 'confirmed_no_deposit' && (
+                    <button
+                      onClick={() => handleMarkDepositPaid(anomaly.appointmentId!)}
+                      className="px-4 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      标记已付
+                    </button>
+                  )}
+                  {anomaly.type === 'long_pending' && (
+                    <button
+                      onClick={() => handleConfirmAppointment(anomaly.appointmentId!)}
+                      className="px-4 py-2 bg-gold-500/20 text-gold-400 hover:bg-gold-500/30 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      确认预约
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEditAppointment(anomaly.appointmentId!)}
+                    className="px-4 py-2 bg-ink-700 text-gray-300 hover:bg-ink-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    查看详情
+                  </button>
+                </div>
+              )}
+              {anomaly.actionable && !anomaly.appointmentId && anomaly.date && (
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-4 py-2 bg-gold-500/20 text-gold-400 hover:bg-gold-500/30 rounded-lg text-sm font-medium transition-colors"
+                >
                   {anomaly.actionLabel}
                 </button>
               )}
@@ -454,9 +508,47 @@ export default function OperationReview() {
                   )}
                 </div>
               </div>
-              <button className="px-4 py-2 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-lg text-sm font-medium transition-colors">
-                处理
-              </button>
+              <div className="flex gap-2">
+                {reminder.type === 'follow_up_pending' && reminder.appointmentId && (
+                  <button
+                    onClick={() => handleConfirmAppointment(reminder.appointmentId!)}
+                    className="px-4 py-2 bg-gold-500 hover:bg-gold-400 text-ink-950 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    确认预约
+                  </button>
+                )}
+                {reminder.type === 'remind_deposit' && reminder.appointmentId && (
+                  <button
+                    onClick={() => handleMarkDepositPaid(reminder.appointmentId!)}
+                    className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-ink-950 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    标记已付
+                  </button>
+                )}
+                {reminder.type === 'confirm_arrival' && reminder.appointmentId && (
+                  <button
+                    onClick={() => handleMarkArrived(reminder.appointmentId!)}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    标记到店
+                  </button>
+                )}
+                {reminder.appointmentId && (
+                  <button
+                    onClick={() => handleEditAppointment(reminder.appointmentId!)}
+                    className="px-4 py-2 bg-ink-700 text-gray-300 hover:bg-ink-600 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    详情
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDismissReminder(reminder.id)}
+                  className="px-3 py-2 text-gray-500 hover:text-gray-300 rounded-lg text-sm transition-colors"
+                  title="忽略"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           ))}
           {reviewData.reminders.length === 0 && (

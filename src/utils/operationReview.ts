@@ -4,7 +4,6 @@ import {
   AnomalyItem,
   ReminderItem,
   OperationReviewData,
-  STATUS_LABELS,
 } from '@/types';
 import { formatDate, getDateRange } from './dateUtils';
 

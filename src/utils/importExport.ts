@@ -1,4 +1,4 @@
-import { Appointment, AppointmentStatus, StatusHistoryEntry } from '@/types';
+import { Appointment, AppointmentStatus } from '@/types';
 
 const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show'];
 const REQUIRED_FIELDS: (keyof Appointment)[] = ['id', 'customerName', 'date', 'time', 'bodyPart', 'duration', 'depositPaid', 'status', 'createdAt'];

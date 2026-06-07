@@ -1,4 +1,4 @@
-import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign, FileText } from 'lucide-react';
+import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign, FileText, XCircle, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Appointment, AppointmentStatus, STATUS_LABELS, STATUS_COLORS } from '@/types';
 
@@ -12,10 +12,12 @@ interface AppointmentCardProps {
 }
 
 const STATUS_FLOW: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed'];
+const TERMINAL_STATUSES: AppointmentStatus[] = ['completed', 'cancelled', 'no_show'];
 
 export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete, index, artistName }: AppointmentCardProps) {
   const navigate = useNavigate();
   const currentStatusIndex = STATUS_FLOW.indexOf(appointment.status);
+  const isTerminal = TERMINAL_STATUSES.includes(appointment.status);
 
   const handleViewProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -23,7 +25,7 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
   };
 
   const getNextStatus = (): AppointmentStatus | null => {
-    if (currentStatusIndex < STATUS_FLOW.length - 1) {
+    if (!isTerminal && currentStatusIndex >= 0 && currentStatusIndex < STATUS_FLOW.length - 1) {
       return STATUS_FLOW[currentStatusIndex + 1];
     }
     return null;
@@ -113,7 +115,7 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
       </div>
 
       <div className="flex items-center justify-between pt-4 border-t border-ink-700">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {nextStatus && (
             <button
               onClick={() => onStatusChange(appointment.id, nextStatus)}
@@ -123,12 +125,38 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
               <span>标记{STATUS_LABELS[nextStatus]}</span>
             </button>
           )}
-          {appointment.status !== 'pending' && (
+          {!isTerminal && appointment.status !== 'pending' && (
             <button
               onClick={() => onStatusChange(appointment.id, 'pending')}
               className="px-4 py-2 bg-ink-700 hover:bg-ink-600 text-gray-300 rounded-lg text-sm transition-colors"
             >
-              重置
+              重置待确认
+            </button>
+          )}
+          {!isTerminal && appointment.status !== 'cancelled' && (
+            <button
+              onClick={() => {
+                if (confirm('确定要取消这个预约吗？')) {
+                  onStatusChange(appointment.id, 'cancelled');
+                }
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-medium transition-colors border border-red-500/30"
+            >
+              <XCircle className="w-4 h-4" />
+              <span>取消预约</span>
+            </button>
+          )}
+          {!isTerminal && appointment.status === 'confirmed' && (
+            <button
+              onClick={() => {
+                if (confirm('确定要标记为未到店吗？')) {
+                  onStatusChange(appointment.id, 'no_show');
+                }
+              }}
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition-colors border border-purple-500/30"
+            >
+              <UserX className="w-4 h-4" />
+              <span>未到店</span>
             </button>
           )}
         </div>
