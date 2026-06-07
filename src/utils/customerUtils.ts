@@ -181,8 +181,16 @@ export const removeAlias = (
         updatedAt: new Date().toISOString(),
       };
     }
+    const aliasIndex = merge.aliases.indexOf(aliasToRemove);
+    if (aliasIndex !== -1) {
+      return {
+        ...merge,
+        aliases: merge.aliases.filter(a => a !== aliasToRemove),
+        updatedAt: new Date().toISOString(),
+      };
+    }
     return merge;
-  }).filter(merge => merge.aliases.length > 0 || merge.canonicalName === canonicalName);
+  });
 };
 
 export const changeCanonicalName = (
@@ -190,19 +198,28 @@ export const changeCanonicalName = (
   oldCanonical: string,
   newCanonical: string
 ): CustomerMerge[] => {
-  return existingMerges.map(merge => {
-    if (merge.canonicalName === oldCanonical) {
-      const newAliases = merge.aliases.filter(a => a !== newCanonical);
-      if (oldCanonical !== newCanonical) {
+  if (oldCanonical === newCanonical) {
+    return existingMerges;
+  }
+
+  const existingIndex = existingMerges.findIndex(m => m.canonicalName === oldCanonical);
+  
+  if (existingIndex !== -1) {
+    return existingMerges.map(merge => {
+      if (merge.canonicalName === oldCanonical) {
+        const newAliases = merge.aliases.filter(a => a !== newCanonical);
         newAliases.push(oldCanonical);
+        return {
+          ...merge,
+          canonicalName: newCanonical,
+          aliases: newAliases,
+          updatedAt: new Date().toISOString(),
+        };
       }
-      return {
-        ...merge,
-        canonicalName: newCanonical,
-        aliases: newAliases,
-        updatedAt: new Date().toISOString(),
-      };
-    }
-    return merge;
-  });
+      return merge;
+    });
+  } else {
+    const newMerge = createCustomerMerge(newCanonical, [oldCanonical]);
+    return [...existingMerges, newMerge];
+  }
 };

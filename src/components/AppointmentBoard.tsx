@@ -15,12 +15,9 @@ import { formatDate, getWeekDates } from '@/utils/dateUtils';
 import { calculateArtistStats, formatDuration } from '@/utils/artistStats';
 import { Appointment, AppointmentStatus, TattooArtist, CalendarView, CALENDAR_VIEW_LABELS, CustomerMerge } from '@/types';
 import {
-  exportAppointmentsToJson,
   exportFullDataToJson,
   downloadJsonFile,
-  generateExportFilename,
   generateFullExportFilename,
-  parseAndValidateImportData,
   parseFullImportData,
   calculateImportDiff,
   executeImport,

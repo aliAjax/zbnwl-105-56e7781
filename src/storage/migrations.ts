@@ -1,5 +1,5 @@
 import { Migration } from './types';
-import { Appointment, StatusHistoryEntry, PaymentRecord, CustomerMerge } from '@/types';
+import { Appointment, StatusHistoryEntry, PaymentRecord } from '@/types';
 import { generateId } from '@/utils/dateUtils';
 
 export const CURRENT_STORAGE_VERSION = 4;

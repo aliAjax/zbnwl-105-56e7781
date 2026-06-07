@@ -364,27 +364,92 @@ export function mergeCustomerMerges(
   existing: CustomerMerge[],
   imported: CustomerMerge[]
 ): CustomerMerge[] {
-  const mergedMap = new Map<string, CustomerMerge>();
+  const result: CustomerMerge[] = JSON.parse(JSON.stringify(existing));
+  const now = new Date().toISOString();
 
-  for (const merge of existing) {
-    mergedMap.set(merge.id, merge);
-  }
+  const getCanonicalMap = (merges: CustomerMerge[]): Map<string, CustomerMerge> => {
+    const map = new Map<string, CustomerMerge>();
+    for (const merge of merges) {
+      map.set(merge.canonicalName, merge);
+      for (const alias of merge.aliases) {
+        map.set(alias, merge);
+      }
+    }
+    return map;
+  };
 
-  for (const merge of imported) {
-    const existingMerge = mergedMap.get(merge.id);
-    if (existingMerge) {
-      const allAliases = new Set([...existingMerge.aliases, ...merge.aliases]);
-      mergedMap.set(merge.id, {
-        ...existingMerge,
-        aliases: Array.from(allAliases),
-        updatedAt: new Date().toISOString(),
-      });
+  const existingCanonicalMap = getCanonicalMap(result);
+
+  for (const importedMerge of imported) {
+    const existingByCanonical = existingCanonicalMap.get(importedMerge.canonicalName);
+    
+    if (existingByCanonical) {
+      const allAliases = new Set<string>([...existingByCanonical.aliases, ...importedMerge.aliases]);
+      allAliases.delete(importedMerge.canonicalName);
+      existingByCanonical.aliases = Array.from(allAliases);
+      existingByCanonical.updatedAt = now;
+      
+      for (const alias of importedMerge.aliases) {
+        const existingForAlias = existingCanonicalMap.get(alias);
+        if (existingForAlias && existingForAlias.canonicalName !== importedMerge.canonicalName) {
+          const aliasIndex = result.findIndex(m => m.id === existingForAlias.id);
+          if (aliasIndex !== -1) {
+            for (const a of existingForAlias.aliases) {
+              if (a !== alias) {
+                allAliases.add(a);
+              }
+            }
+            result.splice(aliasIndex, 1);
+            existingByCanonical.aliases = Array.from(allAliases);
+          }
+        }
+        existingCanonicalMap.set(alias, existingByCanonical);
+      }
     } else {
-      mergedMap.set(merge.id, merge);
+      let targetMerge = result.find(m => m.canonicalName === importedMerge.canonicalName);
+      
+      if (!targetMerge) {
+        for (const alias of importedMerge.aliases) {
+          const existingForAlias = existingCanonicalMap.get(alias);
+          if (existingForAlias) {
+            targetMerge = existingForAlias;
+            break;
+          }
+        }
+      }
+
+      if (targetMerge) {
+        const allAliases = new Set<string>([...targetMerge.aliases, ...importedMerge.aliases, importedMerge.canonicalName]);
+        allAliases.delete(targetMerge.canonicalName);
+        targetMerge.aliases = Array.from(allAliases);
+        targetMerge.updatedAt = now;
+        
+        for (const alias of importedMerge.aliases) {
+          existingCanonicalMap.set(alias, targetMerge);
+        }
+        existingCanonicalMap.set(importedMerge.canonicalName, targetMerge);
+      } else {
+        const newMerge: CustomerMerge = {
+          ...importedMerge,
+          updatedAt: now,
+        };
+        result.push(newMerge);
+        existingCanonicalMap.set(newMerge.canonicalName, newMerge);
+        for (const alias of newMerge.aliases) {
+          existingCanonicalMap.set(alias, newMerge);
+        }
+      }
     }
   }
 
-  return Array.from(mergedMap.values());
+  const seenCanonical = new Set<string>();
+  return result.filter(merge => {
+    if (seenCanonical.has(merge.canonicalName)) {
+      return false;
+    }
+    seenCanonical.add(merge.canonicalName);
+    return true;
+  });
 }
 
 export function generateFullExportFilename(): string {
