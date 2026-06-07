@@ -52,3 +52,11 @@ export const STATUS_COLORS: Record<AppointmentStatus, string> = {
   arrived: 'bg-blue-500/20 text-blue-400 border-blue-600',
   completed: 'bg-tattoo-green/20 text-emerald-400 border-emerald-700',
 };
+
+export type CalendarView = 'list' | 'week' | 'month';
+
+export const CALENDAR_VIEW_LABELS: Record<CalendarView, string> = {
+  list: '列表视图',
+  week: '周视图',
+  month: '月视图',
+};

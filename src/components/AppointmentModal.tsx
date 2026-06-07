@@ -7,6 +7,7 @@ interface AppointmentModalProps {
   isOpen: boolean;
   editingAppointment?: Appointment | null;
   selectedDate: string;
+  selectedTime?: string;
   appointments: Appointment[];
   artists: TattooArtist[];
   onSave: (appointment: Appointment) => void;
@@ -27,7 +28,7 @@ const initialFormData = {
   artistId: '',
 };
 
-export function AppointmentModal({ isOpen, editingAppointment, selectedDate, appointments, artists, onSave, onClose }: AppointmentModalProps) {
+export function AppointmentModal({ isOpen, editingAppointment, selectedDate, selectedTime = '10:00', appointments, artists, onSave, onClose }: AppointmentModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConflictWarning, setShowConflictWarning] = useState(false);
@@ -62,6 +63,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
         setFormData({
           ...initialFormData,
           date: selectedDate,
+          time: selectedTime,
         });
       }
       setErrors({});
@@ -69,7 +71,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, app
       setConflictingAppointments([]);
       setPendingAppointment(null);
     }
-  }, [isOpen, editingAppointment, selectedDate]);
+  }, [isOpen, editingAppointment, selectedDate, selectedTime]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
