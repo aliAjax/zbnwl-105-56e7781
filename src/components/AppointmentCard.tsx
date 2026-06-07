@@ -1,4 +1,5 @@
-import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign } from 'lucide-react';
+import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Appointment, AppointmentStatus, STATUS_LABELS, STATUS_COLORS } from '@/types';
 
 interface AppointmentCardProps {
@@ -12,7 +13,13 @@ interface AppointmentCardProps {
 const STATUS_FLOW: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed'];
 
 export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete, index }: AppointmentCardProps) {
+  const navigate = useNavigate();
   const currentStatusIndex = STATUS_FLOW.indexOf(appointment.status);
+
+  const handleViewProfile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/customer/${encodeURIComponent(appointment.customerName)}`);
+  };
 
   const getNextStatus = (): AppointmentStatus | null => {
     if (currentStatusIndex < STATUS_FLOW.length - 1) {
@@ -31,11 +38,21 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-ink-700 flex items-center justify-center">
+          <button
+            onClick={handleViewProfile}
+            className="w-10 h-10 rounded-full bg-ink-700 flex items-center justify-center hover:bg-ink-600 transition-colors"
+            title="查看客户档案"
+          >
             <User className="w-5 h-5 text-gold-500" />
-          </div>
+          </button>
           <div>
-            <h3 className="font-display text-lg font-semibold text-white">{appointment.customerName}</h3>
+            <button
+              onClick={handleViewProfile}
+              className="font-display text-lg font-semibold text-white hover:text-gold-400 transition-colors text-left"
+              title="查看客户档案"
+            >
+              {appointment.customerName}
+            </button>
             <div className="flex items-center gap-1 text-gray-400 text-sm">
               <Clock className="w-3.5 h-3.5" />
               <span>{appointment.time}</span>
@@ -100,6 +117,13 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
           )}
         </div>
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleViewProfile}
+            className="p-2 text-gray-400 hover:text-gold-500 hover:bg-ink-700 rounded-lg transition-colors"
+            title="查看客户档案"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
           <button
             onClick={() => onEdit(appointment)}
             className="p-2 text-gray-400 hover:text-gold-500 hover:bg-ink-700 rounded-lg transition-colors"

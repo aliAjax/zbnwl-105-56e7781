@@ -14,6 +14,19 @@ export interface Appointment {
   createdAt: string;
 }
 
+export interface CustomerProfile {
+  customerName: string;
+  totalAppointments: number;
+  completedAppointments: number;
+  totalDepositsPaid: number;
+  totalDuration: number;
+  bodyParts: string[];
+  firstVisit: string;
+  lastVisit: string;
+  history: Appointment[];
+  notes: string[];
+}
+
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {
   pending: '待确认',
   confirmed: '已确认',
