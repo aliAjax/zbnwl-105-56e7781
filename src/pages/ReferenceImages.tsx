@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, CalendarDays, ExternalLink, Edit, ArrowLeft, User, AlertTriangle, ImageOff, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppointmentsRepository } from '@/storage';
@@ -76,6 +76,7 @@ export default function ReferenceImages() {
   const totalCustomers = new Set(appointmentsWithImages.map((a) => a.customerName)).size;
   const totalInvalid = invalidImageAppointments.length;
   const totalMissing = futureAppointmentsWithoutImages.length;
+  const totalMissingCustomers = new Set(futureAppointmentsWithoutImages.map((a) => a.customerName)).size;
 
   const handleImageError = (aptId: string) => {
     setFailedImageIds((prev) => new Set(prev).add(aptId));
@@ -350,7 +351,7 @@ export default function ReferenceImages() {
             {totalMissing > 0 && (
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span className="text-gray-400 text-sm">待补参考图: {totalMissing} 位</span>
+                <span className="text-gray-400 text-sm">待补参考图: {totalMissingCustomers} 位客户 · {totalMissing} 个预约</span>
               </div>
             )}
           </div>
