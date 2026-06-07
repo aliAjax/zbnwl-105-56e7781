@@ -194,8 +194,6 @@ export function AppointmentBoard() {
     );
   };
 
-  const activeArtists = artists.filter(a => a.active);
-
   const getArtistName = (artistId?: string): string => {
     if (!artistId) return '未分配';
     const artist = artists.find(a => a.id === artistId);

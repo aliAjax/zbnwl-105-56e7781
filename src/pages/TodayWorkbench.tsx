@@ -22,8 +22,6 @@ export default function TodayWorkbench() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [modalDate, setModalDate] = useState(formatDate(new Date()));
 
-  const activeArtists = artists.filter(a => a.active);
-
   const getArtistName = (artistId?: string): string | undefined => {
     if (!artistId) return undefined;
     const artist = artists.find(a => a.id === artistId);
