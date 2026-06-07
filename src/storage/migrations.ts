@@ -6,7 +6,7 @@ export const CURRENT_STORAGE_VERSION = 2;
 export const APPOINTMENTS_STORAGE_KEY = 'tattoo_appointments';
 export const ARTISTS_STORAGE_KEY = 'tattoo_artists';
 
-const generateStatusHistoryForLegacy = (apt: Appointment): StatusHistoryEntry[] => {
+export const generateStatusHistoryForLegacy = (apt: Appointment): StatusHistoryEntry[] => {
   const history: StatusHistoryEntry[] = [];
   const createdAt = apt.createdAt || new Date().toISOString();
   
@@ -16,18 +16,23 @@ const generateStatusHistoryForLegacy = (apt: Appointment): StatusHistoryEntry[] 
     note: '系统初始化',
   });
 
-  if (apt.status !== 'pending') {
-    const statusOrder: Appointment['status'][] = ['pending', 'confirmed', 'arrived', 'completed'];
-    const currentIndex = statusOrder.indexOf(apt.status);
+  const statusOrder: Appointment['status'][] = ['pending', 'confirmed', 'arrived', 'completed'];
+  const currentIndex = statusOrder.indexOf(apt.status);
+
+  if (currentIndex > 0) {
     for (let i = 1; i <= currentIndex; i++) {
-      if (statusOrder[i]) {
-        history.push({
-          status: statusOrder[i],
-          timestamp: createdAt,
-          note: '历史数据迁移',
-        });
-      }
+      history.push({
+        status: statusOrder[i],
+        timestamp: createdAt,
+        note: '历史数据迁移',
+      });
     }
+  } else if (apt.status !== 'pending') {
+    history.push({
+      status: apt.status,
+      timestamp: createdAt,
+      note: '历史数据迁移',
+    });
   }
 
   return history;

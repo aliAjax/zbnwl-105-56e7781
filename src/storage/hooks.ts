@@ -1,7 +1,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getAppointmentsRepository, getArtistsRepository } from './repositories';
+import { generateStatusHistoryForLegacy } from './migrations';
 import { Appointment, TattooArtist } from '@/types';
 import { RepositoryError } from './types';
+
+const ensureStatusHistory = (appointment: Appointment): Appointment => {
+  if (appointment.statusHistory?.length) {
+    return appointment;
+  }
+
+  return {
+    ...appointment,
+    statusHistory: generateStatusHistoryForLegacy(appointment),
+  };
+};
 
 export function useAppointmentsRepository() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -43,25 +55,20 @@ export function useAppointmentsRepository() {
 
   const saveAppointments = useCallback(async (data: Appointment[]) => {
     const repo = repositoryRef.current;
-    await repo.save(data);
+    await repo.save(data.map(ensureStatusHistory));
   }, []);
 
   const addAppointment = useCallback(async (appointment: Appointment) => {
     const repo = repositoryRef.current;
     const current = await repo.getAll();
+    const exists = current.find(apt => apt.id === appointment.id);
     
-    const appointmentWithHistory: Appointment = {
-      ...appointment,
-      statusHistory: appointment.statusHistory || [
-        {
-          status: appointment.status,
-          timestamp: new Date().toISOString(),
-          note: '创建预约',
-        },
-      ],
-    };
+    const appointmentWithHistory = ensureStatusHistory(
+      appointment.statusHistory?.length || !exists?.statusHistory?.length
+        ? appointment
+        : { ...appointment, statusHistory: exists.statusHistory }
+    );
 
-    const exists = current.find(apt => apt.id === appointmentWithHistory.id);
     if (exists) {
       const updated = current.map(apt => apt.id === appointmentWithHistory.id ? appointmentWithHistory : apt);
       await repo.save(updated);
@@ -78,9 +85,12 @@ export function useAppointmentsRepository() {
     const finalUpdates = { ...updates };
     
     if (updates.status && existing) {
-      const lastStatus = existing.statusHistory?.length > 0
-        ? existing.statusHistory[existing.statusHistory.length - 1].status
-        : existing.status;
+      const baseHistory = ensureStatusHistory(existing).statusHistory;
+      const lastStatus = baseHistory[baseHistory.length - 1]?.status || existing.status;
+
+      if (!existing.statusHistory?.length) {
+        finalUpdates.statusHistory = baseHistory;
+      }
       
       if (updates.status !== lastStatus) {
         const newHistoryEntry = {
@@ -89,10 +99,12 @@ export function useAppointmentsRepository() {
           note: existing.status === updates.status ? '状态更新' : `从${existing.status}变更为${updates.status}`,
         };
         finalUpdates.statusHistory = [
-          ...(existing.statusHistory || []),
+          ...baseHistory,
           newHistoryEntry,
         ];
       }
+    } else if (existing && !existing.statusHistory?.length) {
+      finalUpdates.statusHistory = ensureStatusHistory(existing).statusHistory;
     }
 
     const updated = current.map(apt => apt.id === id ? { ...apt, ...finalUpdates } : apt);

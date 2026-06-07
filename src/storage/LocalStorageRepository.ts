@@ -87,7 +87,7 @@ export class LocalStorageRepository<T> implements IRepository<T> {
   }
 
   private migrateLegacyData(legacyData: unknown): T {
-    return legacyData as T;
+    return this.runMigrations(legacyData, 0);
   }
 
   private runMigrations(data: unknown, fromVersion: number): T {
