@@ -23,17 +23,17 @@ export function ListView({
   onDelete,
   onAddClick,
 }: ListViewProps) {
-  const weekDates = getWeekDates(8);
+  const weekDates = useMemo(() => getWeekDates(8), []);
   const todayStr = formatDate(new Date());
 
-  const filteredAppointments = useMemo(() => 
+  const filteredAppointments = useMemo(() =>
     selectedArtistId === 'all'
       ? appointments
       : appointments.filter(apt => apt.artistId === selectedArtistId),
     [appointments, selectedArtistId]
   );
 
-  const allWeekAppointments = useMemo(() => 
+  const allWeekAppointments = useMemo(() =>
     weekDates.map(date => {
       const dateStr = formatDate(date);
       const dayAppointments = filteredAppointments
@@ -55,7 +55,7 @@ export function ListView({
     return expanded;
   };
 
-  const [expandedDates, setExpandedDates] = useState<Set<string>>(getInitialExpandedDates());
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(() => getInitialExpandedDates());
 
   useEffect(() => {
     const expanded = new Set<string>();
