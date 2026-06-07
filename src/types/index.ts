@@ -1,5 +1,29 @@
 export type AppointmentStatus = 'pending' | 'confirmed' | 'arrived' | 'completed' | 'cancelled' | 'no_show';
 
+export type PaymentType = 'deposit' | 'balance' | 'supplement' | 'refund';
+
+export const PAYMENT_TYPE_LABELS: Record<PaymentType, string> = {
+  deposit: '定金',
+  balance: '尾款',
+  supplement: '补款',
+  refund: '退款',
+};
+
+export const PAYMENT_TYPE_COLORS: Record<PaymentType, string> = {
+  deposit: 'bg-emerald-500/20 text-emerald-400 border-emerald-600',
+  balance: 'bg-blue-500/20 text-blue-400 border-blue-600',
+  supplement: 'bg-gold-500/20 text-gold-400 border-gold-600',
+  refund: 'bg-red-500/20 text-red-400 border-red-600',
+};
+
+export interface PaymentRecord {
+  id: string;
+  type: PaymentType;
+  amount: number;
+  timestamp: string;
+  note?: string;
+}
+
 export interface StatusHistoryEntry {
   status: AppointmentStatus;
   timestamp: string;
@@ -31,6 +55,7 @@ export interface Appointment {
   artistId?: string;
   createdAt: string;
   statusHistory: StatusHistoryEntry[];
+  paymentRecords?: PaymentRecord[];
 }
 
 export interface TrendDataPoint {
@@ -108,6 +133,11 @@ export interface CustomerProfile {
   lastVisit: string;
   history: Appointment[];
   notes: string[];
+  totalSpent?: number;
+  totalDepositPaidAmount?: number;
+  totalBalancePaidAmount?: number;
+  totalSupplementPaidAmount?: number;
+  totalRefundAmount?: number;
 }
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = {

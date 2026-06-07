@@ -1,8 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, DollarSign, FileText, User, CheckCircle, History, AlertCircle, TrendingUp, MinusCircle } from 'lucide-react';
 import { useAppointmentsRepository } from '@/storage';
 import { buildCustomerProfile } from '@/utils/customerUtils';
-import { STATUS_LABELS, STATUS_COLORS } from '@/types';
+import { STATUS_LABELS, STATUS_COLORS, PAYMENT_TYPE_LABELS, PAYMENT_TYPE_COLORS } from '@/types';
+import { calculatePaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
 
 export default function CustomerProfile() {
   const { customerName } = useParams<{ customerName: string }>();
@@ -67,7 +68,14 @@ export default function CustomerProfile() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="bg-ink-800/50 rounded-xl border border-ink-700 p-4">
+            <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+              <TrendingUp className="w-4 h-4 text-emerald-500" />
+              <span>累计消费</span>
+            </div>
+            <p className="text-2xl font-display font-bold text-emerald-400">¥{profile.totalSpent || 0}</p>
+          </div>
           <div className="bg-ink-800/50 rounded-xl border border-ink-700 p-4">
             <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
               <Calendar className="w-4 h-4 text-gold-500" />
@@ -96,6 +104,15 @@ export default function CustomerProfile() {
             </div>
             <p className="text-2xl font-display font-bold text-blue-400">{profile.totalDuration}h</p>
           </div>
+          {profile.totalRefundAmount && profile.totalRefundAmount > 0 && (
+            <div className="bg-ink-800/50 rounded-xl border border-ink-700 p-4">
+              <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                <MinusCircle className="w-4 h-4 text-red-400" />
+                <span>累计退款</span>
+              </div>
+              <p className="text-2xl font-display font-bold text-red-400">¥{profile.totalRefundAmount}</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -181,7 +198,7 @@ export default function CustomerProfile() {
                   </div>
                   <div className="text-gray-400 text-sm">{apt.time}</div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-gray-400">
+                <div className="flex items-center gap-4 text-sm text-gray-400 flex-wrap">
                   <span className="flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-gold-600" />
                     {apt.bodyPart}
@@ -190,11 +207,35 @@ export default function CustomerProfile() {
                     <Clock className="w-3.5 h-3.5" />
                     {apt.duration}小时
                   </span>
-                  <span className={`flex items-center gap-1 ${apt.depositPaid ? 'text-emerald-400' : 'text-gray-500'}`}>
+                  <span className={`flex items-center gap-1 ${hasDepositPaid(apt) ? 'text-emerald-400' : 'text-gray-500'}`}>
                     <DollarSign className="w-3.5 h-3.5" />
-                    {apt.depositPaid ? '定金已付' : '定金未付'}
+                    {hasDepositPaid(apt) ? '定金已付' : '定金未付'}
                   </span>
+                  {(() => {
+                    const summary = calculatePaymentSummary(apt);
+                    if (summary.netIncome > 0) {
+                      return (
+                        <span className="flex items-center gap-1 text-emerald-400">
+                          ¥{summary.netIncome}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
+                {apt.paymentRecords && apt.paymentRecords.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {apt.paymentRecords.map(record => (
+                      <span
+                        key={record.id}
+                        className={`px-2 py-0.5 rounded text-xs border ${PAYMENT_TYPE_COLORS[record.type]}`}
+                        title={record.note}
+                      >
+                        {PAYMENT_TYPE_LABELS[record.type]} ¥{record.amount}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

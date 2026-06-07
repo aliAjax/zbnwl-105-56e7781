@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
-import { Appointment, AppointmentStatus, TattooArtist } from '@/types';
+import { X, AlertTriangle, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Appointment, AppointmentStatus, TattooArtist, PaymentRecord, PaymentType, PAYMENT_TYPE_LABELS, PAYMENT_TYPE_COLORS } from '@/types';
 import { generateId, getTimeSlot, isTimeOverlap, minutesToTime } from '@/utils/dateUtils';
+import { calculatePaymentSummary } from '@/utils/paymentUtils';
 
 interface AppointmentModalProps {
   isOpen: boolean;
@@ -28,12 +29,28 @@ const initialFormData = {
   artistId: '',
 };
 
+interface NewPaymentForm {
+  type: PaymentType;
+  amount: number;
+  note: string;
+}
+
+const initialNewPayment: NewPaymentForm = {
+  type: 'deposit',
+  amount: 0,
+  note: '',
+};
+
 export function AppointmentModal({ isOpen, editingAppointment, selectedDate, selectedTime = '10:00', appointments, artists, onSave, onClose }: AppointmentModalProps) {
   const [formData, setFormData] = useState(initialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showConflictWarning, setShowConflictWarning] = useState(false);
   const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
   const [pendingAppointment, setPendingAppointment] = useState<Appointment | null>(null);
+  const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
+  const [showAddPayment, setShowAddPayment] = useState(false);
+  const [newPayment, setNewPayment] = useState<NewPaymentForm>(initialNewPayment);
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
   const activeArtists = artists.filter(a => a.active);
 
@@ -59,17 +76,22 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
           notes: editingAppointment.notes || '',
           artistId: editingAppointment.artistId || '',
         });
+        setPaymentRecords(editingAppointment.paymentRecords || []);
       } else {
         setFormData({
           ...initialFormData,
           date: selectedDate,
           time: selectedTime,
         });
+        setPaymentRecords([]);
       }
       setErrors({});
       setShowConflictWarning(false);
       setConflictingAppointments([]);
       setPendingAppointment(null);
+      setShowAddPayment(false);
+      setNewPayment(initialNewPayment);
+      setEditingPaymentId(null);
     }
   }, [isOpen, editingAppointment, selectedDate, selectedTime]);
 
@@ -107,10 +129,62 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
     });
   };
 
+  const handleAddPayment = () => {
+    if (newPayment.amount <= 0) return;
+    
+    const newRecord: PaymentRecord = {
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      type: newPayment.type,
+      amount: newPayment.amount,
+      timestamp: new Date().toISOString(),
+      note: newPayment.note.trim() || undefined,
+    };
+    
+    setPaymentRecords([...paymentRecords, newRecord]);
+    setNewPayment(initialNewPayment);
+    setShowAddPayment(false);
+  };
+
+  const handleDeletePayment = (recordId: string) => {
+    setPaymentRecords(paymentRecords.filter(r => r.id !== recordId));
+  };
+
+  const handleStartEditPayment = (record: PaymentRecord) => {
+    setEditingPaymentId(record.id);
+    setNewPayment({
+      type: record.type,
+      amount: record.amount,
+      note: record.note || '',
+    });
+  };
+
+  const handleSaveEditPayment = () => {
+    if (!editingPaymentId || newPayment.amount <= 0) return;
+    
+    setPaymentRecords(paymentRecords.map(r =>
+      r.id === editingPaymentId
+        ? { ...r, type: newPayment.type, amount: newPayment.amount, note: newPayment.note.trim() || undefined }
+        : r
+    ));
+    setEditingPaymentId(null);
+    setNewPayment(initialNewPayment);
+  };
+
+  const handleCancelEditPayment = () => {
+    setEditingPaymentId(null);
+    setNewPayment(initialNewPayment);
+  };
+
+  const currentPaymentSummary = calculatePaymentSummary({ paymentRecords } as Appointment);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validate()) return;
+
+    const depositTotal = paymentRecords.filter(r => r.type === 'deposit').reduce((sum, r) => sum + r.amount, 0);
+    const finalDepositPaid = depositTotal > 0 || formData.depositPaid;
+    const finalDepositAmount = depositTotal > 0 ? depositTotal : formData.depositAmount || undefined;
 
     const appointment: Appointment = {
       id: editingAppointment?.id || generateId(),
@@ -120,14 +194,15 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
       bodyPart: formData.bodyPart.trim(),
       duration: formData.duration,
       referenceImage: formData.referenceImage.trim() || undefined,
-      depositPaid: formData.depositPaid,
-      depositAmount: formData.depositAmount || undefined,
+      depositPaid: finalDepositPaid,
+      depositAmount: finalDepositAmount,
       estimatedBalance: formData.estimatedBalance || undefined,
       notes: formData.notes.trim() || undefined,
       artistId: formData.artistId || undefined,
       status: editingAppointment?.status || ('pending' as AppointmentStatus),
       createdAt: editingAppointment?.createdAt || new Date().toISOString(),
       statusHistory: editingAppointment?.statusHistory || [],
+      paymentRecords: paymentRecords.length > 0 ? paymentRecords : undefined,
     };
 
     const conflicts = findConflictingAppointments(appointment);
@@ -339,6 +414,168 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
                 placeholder="输入预计尾款"
               />
             </div>
+          </div>
+
+          <div className="bg-ink-900/50 rounded-xl border border-ink-700 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="font-medium text-white">收款流水</h3>
+                <p className="text-xs text-gray-500 mt-0.5">管理定金、尾款、补款、退款记录</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-gray-400">
+                  实收: <span className="text-emerald-400 font-bold">¥{currentPaymentSummary.netIncome}</span>
+                </p>
+              </div>
+            </div>
+
+            {paymentRecords.length > 0 && (
+              <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
+                {paymentRecords.map((record) => (
+                  <div
+                    key={record.id}
+                    className="bg-ink-800 rounded-lg p-3 border border-ink-700"
+                  >
+                    {editingPaymentId === record.id ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <select
+                            value={newPayment.type}
+                            onChange={(e) => setNewPayment({ ...newPayment, type: e.target.value as PaymentType })}
+                            className="px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                          >
+                            <option value="deposit">定金</option>
+                            <option value="balance">尾款</option>
+                            <option value="supplement">补款</option>
+                            <option value="refund">退款</option>
+                          </select>
+                          <input
+                            type="number"
+                            min="0"
+                            step="100"
+                            value={newPayment.amount}
+                            onChange={(e) => setNewPayment({ ...newPayment, amount: parseFloat(e.target.value) || 0 })}
+                            className="px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                            placeholder="金额"
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={newPayment.note}
+                          onChange={(e) => setNewPayment({ ...newPayment, note: e.target.value })}
+                          className="w-full px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                          placeholder="备注（可选）"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={handleSaveEditPayment}
+                            className="flex-1 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg text-sm hover:bg-emerald-500/30 transition-colors"
+                          >
+                            保存
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEditPayment}
+                            className="flex-1 px-3 py-1.5 bg-ink-700 text-gray-400 rounded-lg text-sm hover:bg-ink-600 transition-colors"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs border ${PAYMENT_TYPE_COLORS[record.type]}`}>
+                            {PAYMENT_TYPE_LABELS[record.type]}
+                          </span>
+                          <span className="text-white font-medium">¥{record.amount}</span>
+                          {record.note && (
+                            <span className="text-gray-500 text-xs">({record.note})</span>
+                          )}
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStartEditPayment(record)}
+                            className="p-1.5 text-gray-500 hover:text-gold-500 hover:bg-ink-700 rounded transition-colors"
+                            title="编辑"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePayment(record.id)}
+                            className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-ink-700 rounded transition-colors"
+                            title="删除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showAddPayment ? (
+              <div className="space-y-3 bg-ink-800 rounded-lg p-3 border border-ink-600">
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={newPayment.type}
+                    onChange={(e) => setNewPayment({ ...newPayment, type: e.target.value as PaymentType })}
+                    className="px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                  >
+                    <option value="deposit">定金</option>
+                    <option value="balance">尾款</option>
+                    <option value="supplement">补款</option>
+                    <option value="refund">退款</option>
+                  </select>
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={newPayment.amount}
+                    onChange={(e) => setNewPayment({ ...newPayment, amount: parseFloat(e.target.value) || 0 })}
+                    className="px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                    placeholder="金额"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={newPayment.note}
+                  onChange={(e) => setNewPayment({ ...newPayment, note: e.target.value })}
+                  className="w-full px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                  placeholder="备注（可选）"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAddPayment}
+                    className="flex-1 px-3 py-2 bg-gold-500 text-ink-950 rounded-lg text-sm font-medium hover:bg-gold-400 transition-colors"
+                  >
+                    添加
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowAddPayment(false); setNewPayment(initialNewPayment); }}
+                    className="flex-1 px-3 py-2 bg-ink-700 text-gray-300 rounded-lg text-sm hover:bg-ink-600 transition-colors"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowAddPayment(true)}
+                className="w-full py-2.5 border-2 border-dashed border-ink-600 rounded-lg text-gray-400 hover:text-gold-400 hover:border-gold-500/50 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                添加流水记录
+              </button>
+            )}
           </div>
 
           <div>

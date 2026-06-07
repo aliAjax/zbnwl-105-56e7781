@@ -1,6 +1,7 @@
-import { DollarSign, Calendar, CheckCircle, Clock, TrendingUp } from 'lucide-react';
+import { DollarSign, Calendar, Clock, TrendingUp, ArrowDownCircle, MinusCircle, PlusCircle } from 'lucide-react';
 import { Appointment } from '@/types';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
+import { calculateBatchPaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
 
 interface RevenueDashboardProps {
   appointments: Appointment[];
@@ -8,6 +9,10 @@ interface RevenueDashboardProps {
 
 interface StatsData {
   totalDepositsReceived: number;
+  totalBalanceReceived: number;
+  totalSupplementReceived: number;
+  totalRefund: number;
+  netIncome: number;
   unpaidDepositCount: number;
   completedCount: number;
   totalAppointments: number;
@@ -28,14 +33,9 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
   const calculateStats = (filterFn: (apt: Appointment) => boolean): StatsData => {
     const filtered = appointments.filter(filterFn);
     
-    const totalDepositsReceived = filtered.reduce((sum, apt) => {
-      if (apt.depositPaid && apt.depositAmount) {
-        return sum + apt.depositAmount;
-      }
-      return sum;
-    }, 0);
+    const paymentSummary = calculateBatchPaymentSummary(filtered);
 
-    const unpaidDepositCount = filtered.filter(apt => !apt.depositPaid).length;
+    const unpaidDepositCount = filtered.filter(apt => !hasDepositPaid(apt)).length;
     const completedCount = filtered.filter(apt => apt.status === 'completed').length;
 
     const totalEstimatedRevenue = filtered.reduce((sum, apt) => {
@@ -45,7 +45,11 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
     }, 0);
 
     return {
-      totalDepositsReceived,
+      totalDepositsReceived: paymentSummary.totalDeposit,
+      totalBalanceReceived: paymentSummary.totalBalance,
+      totalSupplementReceived: paymentSummary.totalSupplement,
+      totalRefund: paymentSummary.totalRefund,
+      netIncome: paymentSummary.netIncome,
       unpaidDepositCount,
       completedCount,
       totalAppointments: filtered.length,
@@ -106,34 +110,48 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
             <Calendar className="w-4 h-4 text-gold-500" />
             <h3 className="font-medium text-white">未来八天 ({weekStartStr} ~ {weekEndStr})</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <StatCard
-              title="已收定金"
-              value={`¥${weekStats.totalDepositsReceived.toLocaleString()}`}
-              icon={DollarSign}
+              title="实收总计"
+              value={`¥${weekStats.netIncome.toLocaleString()}`}
+              icon={TrendingUp}
               color="bg-emerald-500/20"
               subtitle={`${weekStats.totalAppointments} 个预约`}
             />
             <StatCard
-              title="未付定金预约"
+              title="已收定金"
+              value={`¥${weekStats.totalDepositsReceived.toLocaleString()}`}
+              icon={DollarSign}
+              color="bg-gold-500/20"
+              subtitle="定金收入"
+            />
+            <StatCard
+              title="已收尾款"
+              value={`¥${weekStats.totalBalanceReceived.toLocaleString()}`}
+              icon={ArrowDownCircle}
+              color="bg-blue-500/20"
+              subtitle="尾款收入"
+            />
+            <StatCard
+              title="已收补款"
+              value={`¥${weekStats.totalSupplementReceived.toLocaleString()}`}
+              icon={PlusCircle}
+              color="bg-purple-500/20"
+              subtitle="补款收入"
+            />
+            <StatCard
+              title="已退款"
+              value={`¥${weekStats.totalRefund.toLocaleString()}`}
+              icon={MinusCircle}
+              color="bg-tattoo-red/20"
+              subtitle="退款金额"
+            />
+            <StatCard
+              title="未付定金"
               value={weekStats.unpaidDepositCount}
               icon={Clock}
-              color="bg-tattoo-red/20"
+              color="bg-orange-500/20"
               subtitle="待跟进"
-            />
-            <StatCard
-              title="已完成预约"
-              value={weekStats.completedCount}
-              icon={CheckCircle}
-              color="bg-blue-500/20"
-              subtitle="已服务完成"
-            />
-            <StatCard
-              title="预计总收入"
-              value={`¥${weekStats.totalEstimatedRevenue.toLocaleString()}`}
-              icon={TrendingUp}
-              color="bg-gold-500/20"
-              subtitle="定金+尾款"
             />
           </div>
         </div>
@@ -143,34 +161,48 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
             <Calendar className="w-4 h-4 text-gold-500" />
             <h3 className="font-medium text-white">本月 ({monthStartStr} ~ {monthEndStr})</h3>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <StatCard
-              title="已收定金"
-              value={`¥${monthStats.totalDepositsReceived.toLocaleString()}`}
-              icon={DollarSign}
+              title="实收总计"
+              value={`¥${monthStats.netIncome.toLocaleString()}`}
+              icon={TrendingUp}
               color="bg-emerald-500/20"
               subtitle={`${monthStats.totalAppointments} 个预约`}
             />
             <StatCard
-              title="未付定金预约"
+              title="已收定金"
+              value={`¥${monthStats.totalDepositsReceived.toLocaleString()}`}
+              icon={DollarSign}
+              color="bg-gold-500/20"
+              subtitle="定金收入"
+            />
+            <StatCard
+              title="已收尾款"
+              value={`¥${monthStats.totalBalanceReceived.toLocaleString()}`}
+              icon={ArrowDownCircle}
+              color="bg-blue-500/20"
+              subtitle="尾款收入"
+            />
+            <StatCard
+              title="已收补款"
+              value={`¥${monthStats.totalSupplementReceived.toLocaleString()}`}
+              icon={PlusCircle}
+              color="bg-purple-500/20"
+              subtitle="补款收入"
+            />
+            <StatCard
+              title="已退款"
+              value={`¥${monthStats.totalRefund.toLocaleString()}`}
+              icon={MinusCircle}
+              color="bg-tattoo-red/20"
+              subtitle="退款金额"
+            />
+            <StatCard
+              title="未付定金"
               value={monthStats.unpaidDepositCount}
               icon={Clock}
-              color="bg-tattoo-red/20"
+              color="bg-orange-500/20"
               subtitle="待跟进"
-            />
-            <StatCard
-              title="已完成预约"
-              value={monthStats.completedCount}
-              icon={CheckCircle}
-              color="bg-blue-500/20"
-              subtitle="已服务完成"
-            />
-            <StatCard
-              title="预计总收入"
-              value={`¥${monthStats.totalEstimatedRevenue.toLocaleString()}`}
-              icon={TrendingUp}
-              color="bg-gold-500/20"
-              subtitle="定金+尾款"
             />
           </div>
         </div>

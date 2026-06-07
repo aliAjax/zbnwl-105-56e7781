@@ -1,6 +1,7 @@
 import { useMemo, useCallback } from 'react';
 import { useLocalStorage } from './useLocalStorage';
 import { Appointment, AppointmentFilters, DEFAULT_FILTERS } from '@/types';
+import { hasDepositPaid } from '@/utils/paymentUtils';
 
 const STORAGE_KEY = 'appointment-filters';
 
@@ -27,7 +28,7 @@ export function useAppointmentFilters(appointments: Appointment[]) {
         return false;
       }
       if (filters.depositPaid !== 'all') {
-        const paid = apt.depositPaid;
+        const paid = hasDepositPaid(apt);
         if (filters.depositPaid === 'yes' && !paid) return false;
         if (filters.depositPaid === 'no' && paid) return false;
       }

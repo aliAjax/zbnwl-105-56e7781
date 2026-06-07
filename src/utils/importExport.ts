@@ -1,6 +1,7 @@
-import { Appointment, AppointmentStatus } from '@/types';
+import { Appointment, AppointmentStatus, PaymentType } from '@/types';
 
 const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show'];
+const VALID_PAYMENT_TYPES: PaymentType[] = ['deposit', 'balance', 'supplement', 'refund'];
 const REQUIRED_FIELDS: (keyof Appointment)[] = ['id', 'customerName', 'date', 'time', 'bodyPart', 'duration', 'depositPaid', 'status', 'createdAt'];
 
 export interface ImportValidationResult {
@@ -100,6 +101,35 @@ export function validateAppointment(data: unknown): { valid: boolean; errors: st
           }
           if (typeof entry.timestamp !== 'string' || isNaN(Date.parse(entry.timestamp))) {
             errors.push(`statusHistory[${i}].timestamp 必须是有效的日期字符串`);
+          }
+        }
+      }
+    }
+  }
+
+  if (apt.paymentRecords !== undefined) {
+    if (!Array.isArray(apt.paymentRecords)) {
+      errors.push('字段 paymentRecords 必须是数组');
+    } else {
+      for (let i = 0; i < apt.paymentRecords.length; i++) {
+        const record = apt.paymentRecords[i] as Record<string, unknown>;
+        if (typeof record !== 'object' || record === null) {
+          errors.push(`paymentRecords[${i}] 必须是对象`);
+        } else {
+          if (typeof record.id !== 'string' || record.id.trim() === '') {
+            errors.push(`paymentRecords[${i}].id 必须是非空字符串`);
+          }
+          if (!VALID_PAYMENT_TYPES.includes(record.type as PaymentType)) {
+            errors.push(`paymentRecords[${i}].type 必须是有效的支付类型: ${VALID_PAYMENT_TYPES.join(', ')}`);
+          }
+          if (typeof record.amount !== 'number' || record.amount < 0) {
+            errors.push(`paymentRecords[${i}].amount 必须是大于等于 0 的数字`);
+          }
+          if (typeof record.timestamp !== 'string' || isNaN(Date.parse(record.timestamp))) {
+            errors.push(`paymentRecords[${i}].timestamp 必须是有效的日期字符串`);
+          }
+          if (record.note !== undefined && record.note !== null && typeof record.note !== 'string') {
+            errors.push(`paymentRecords[${i}].note 必须是字符串`);
           }
         }
       }

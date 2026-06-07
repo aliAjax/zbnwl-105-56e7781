@@ -6,6 +6,7 @@ import {
   OperationReviewData,
 } from '@/types';
 import { formatDate, getDateRange } from './dateUtils';
+import { hasDepositPaid } from '@/utils/paymentUtils';
 
 const LONG_PENDING_HOURS = 48;
 const OVERBOOKED_HOURS_THRESHOLD = 12;
@@ -35,8 +36,8 @@ export function generateTrendData(
       completed: dayAppointments.filter((a) => a.status === 'completed').length,
       cancelled: dayAppointments.filter((a) => a.status === 'cancelled').length,
       noShow: dayAppointments.filter((a) => a.status === 'no_show').length,
-      depositPaid: dayAppointments.filter((a) => a.depositPaid).length,
-      depositUnpaid: dayAppointments.filter((a) => !a.depositPaid).length,
+      depositPaid: dayAppointments.filter((a) => hasDepositPaid(a)).length,
+      depositUnpaid: dayAppointments.filter((a) => !hasDepositPaid(a)).length,
     });
   }
 
@@ -76,7 +77,7 @@ export function detectAnomalies(appointments: Appointment[]): AnomalyItem[] {
   }
 
   for (const apt of appointments) {
-    if (apt.status === 'confirmed' && !apt.depositPaid) {
+    if (apt.status === 'confirmed' && !hasDepositPaid(apt)) {
       anomalies.push({
         id: `no-deposit-${apt.id}`,
         type: 'confirmed_no_deposit',
@@ -182,7 +183,7 @@ export function generateReminders(appointments: Appointment[]): ReminderItem[] {
       }
     }
 
-    if (apt.status === 'confirmed' && !apt.depositPaid) {
+    if (apt.status === 'confirmed' && !hasDepositPaid(apt)) {
       reminders.push({
         id: `deposit-${apt.id}`,
         type: 'remind_deposit',
@@ -221,7 +222,7 @@ export function generateReminders(appointments: Appointment[]): ReminderItem[] {
   if (weekAppointments.length > 0) {
     const confirmedCount = weekAppointments.filter((a) => a.status === 'confirmed').length;
     const pendingCount = weekAppointments.filter((a) => a.status === 'pending').length;
-    const unpaidCount = weekAppointments.filter((a) => !a.depositPaid).length;
+    const unpaidCount = weekAppointments.filter((a) => !hasDepositPaid(a)).length;
 
     if (pendingCount > 0 || unpaidCount > 0) {
       reminders.push({
@@ -270,7 +271,7 @@ export function calculateSummary(appointments: Appointment[]) {
     }
   }
 
-  const depositPaidCount = appointments.filter((a) => a.depositPaid).length;
+  const depositPaidCount = appointments.filter((a) => hasDepositPaid(a)).length;
 
   const dateGroups: Record<string, Appointment[]> = {};
   for (const apt of appointments) {

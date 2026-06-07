@@ -1,6 +1,7 @@
 import { Clock, MapPin, Edit2, Trash2, ExternalLink, Check, User, DollarSign, FileText, XCircle, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { Appointment, AppointmentStatus, STATUS_LABELS, STATUS_COLORS } from '@/types';
+import { Appointment, AppointmentStatus, STATUS_LABELS, STATUS_COLORS, PAYMENT_TYPE_LABELS, PAYMENT_TYPE_COLORS } from '@/types';
+import { calculatePaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
 
 interface AppointmentCardProps {
   appointment: Appointment;
@@ -18,6 +19,8 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
   const navigate = useNavigate();
   const currentStatusIndex = STATUS_FLOW.indexOf(appointment.status);
   const isTerminal = TERMINAL_STATUSES.includes(appointment.status);
+  const paymentSummary = calculatePaymentSummary(appointment);
+  const depositPaid = hasDepositPaid(appointment);
 
   const handleViewProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -92,18 +95,63 @@ export function AppointmentCard({ appointment, onStatusChange, onEdit, onDelete,
           </a>
         )}
         <div className="flex items-center gap-2 text-sm">
-          <DollarSign className={`w-4 h-4 ${appointment.depositPaid ? 'text-emerald-500' : 'text-gray-500'}`} />
-          <span className={appointment.depositPaid ? 'text-emerald-400' : 'text-gray-500'}>
-            {appointment.depositPaid ? '定金已付' : '定金未付'}
+          <DollarSign className={`w-4 h-4 ${depositPaid ? 'text-emerald-500' : 'text-gray-500'}`} />
+          <span className={depositPaid ? 'text-emerald-400' : 'text-gray-500'}>
+            {depositPaid ? '定金已付' : '定金未付'}
           </span>
-          {appointment.depositAmount !== undefined && appointment.depositAmount > 0 && (
-            <span className="text-gold-500 font-medium">¥{appointment.depositAmount}</span>
+          {paymentSummary.totalDeposit > 0 && (
+            <span className="text-gold-500 font-medium">¥{paymentSummary.totalDeposit}</span>
           )}
         </div>
-        {appointment.estimatedBalance !== undefined && appointment.estimatedBalance > 0 && (
+        {paymentSummary.totalBalance > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">已收尾款:</span>
+            <span className="text-blue-400">¥{paymentSummary.totalBalance}</span>
+          </div>
+        )}
+        {paymentSummary.totalSupplement > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">已收补款:</span>
+            <span className="text-purple-400">¥{paymentSummary.totalSupplement}</span>
+          </div>
+        )}
+        {paymentSummary.totalRefund > 0 && (
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-gray-500">已退款:</span>
+            <span className="text-red-400">-¥{paymentSummary.totalRefund}</span>
+          </div>
+        )}
+        {appointment.estimatedBalance !== undefined && appointment.estimatedBalance > 0 && paymentSummary.totalBalance === 0 && (
           <div className="flex items-center gap-2 text-sm">
             <span className="text-gray-500">预计尾款:</span>
-            <span className="text-blue-400">¥{appointment.estimatedBalance}</span>
+            <span className="text-blue-400/60">¥{appointment.estimatedBalance}</span>
+          </div>
+        )}
+        {paymentSummary.netIncome > 0 && (
+          <div className="flex items-center gap-2 text-sm pt-1 border-t border-ink-700">
+            <span className="text-gray-400 font-medium">实收总计:</span>
+            <span className="text-emerald-400 font-bold">¥{paymentSummary.netIncome}</span>
+          </div>
+        )}
+        {appointment.paymentRecords && appointment.paymentRecords.length > 0 && (
+          <div className="space-y-1 pt-2">
+            <p className="text-xs text-gray-500">流水记录:</p>
+            <div className="flex flex-wrap gap-1">
+              {appointment.paymentRecords.slice(0, 3).map(record => (
+                <span
+                  key={record.id}
+                  className={`px-2 py-0.5 rounded text-xs border ${PAYMENT_TYPE_COLORS[record.type]}`}
+                  title={record.note}
+                >
+                  {PAYMENT_TYPE_LABELS[record.type]} ¥{record.amount}
+                </span>
+              ))}
+              {appointment.paymentRecords.length > 3 && (
+                <span className="px-2 py-0.5 rounded text-xs bg-ink-700 text-gray-400 border border-ink-600">
+                  +{appointment.paymentRecords.length - 3} 条
+                </span>
+              )}
+            </div>
           </div>
         )}
         {appointment.notes && (

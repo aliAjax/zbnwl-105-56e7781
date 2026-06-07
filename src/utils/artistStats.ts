@@ -1,5 +1,6 @@
 import { Appointment, TattooArtist, ArtistStats, ArtistStatsSummary } from '@/types';
 import { formatDate, getWeekDates } from './dateUtils';
+import { hasDepositPaid } from '@/utils/paymentUtils';
 
 export function calculateArtistStats(
   appointments: Appointment[],
@@ -26,7 +27,7 @@ export function calculateArtistStats(
   const appointmentCount = dateRangeAppointments.length;
   const totalDuration = dateRangeAppointments.reduce((sum, apt) => sum + apt.duration, 0);
   const pendingCount = dateRangeAppointments.filter(apt => apt.status === 'pending').length;
-  const unpaidDepositCount = dateRangeAppointments.filter(apt => !apt.depositPaid).length;
+  const unpaidDepositCount = dateRangeAppointments.filter(apt => !hasDepositPaid(apt)).length;
   const futureAppointmentCount = futureAppointments.length;
 
   return {

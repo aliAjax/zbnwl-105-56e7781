@@ -1,4 +1,5 @@
 import { Appointment, CustomerProfile } from '@/types';
+import { calculateBatchPaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
 
 export const buildCustomerProfile = (
   appointments: Appointment[],
@@ -27,7 +28,7 @@ export const buildCustomerProfile = (
     if (apt.notes && apt.notes.trim()) {
       notesList.push(apt.notes);
     }
-    if (apt.depositPaid) {
+    if (hasDepositPaid(apt)) {
       totalDepositsPaid++;
     }
     totalDuration += apt.duration;
@@ -35,6 +36,8 @@ export const buildCustomerProfile = (
       completedCount++;
     }
   });
+
+  const paymentSummary = calculateBatchPaymentSummary(customerAppointments);
 
   return {
     customerName,
@@ -47,6 +50,11 @@ export const buildCustomerProfile = (
     lastVisit: sortedByDate[sortedByDate.length - 1].date,
     history: sortedByDate,
     notes: notesList,
+    totalSpent: paymentSummary.netIncome,
+    totalDepositPaidAmount: paymentSummary.totalDeposit,
+    totalBalancePaidAmount: paymentSummary.totalBalance,
+    totalSupplementPaidAmount: paymentSummary.totalSupplement,
+    totalRefundAmount: paymentSummary.totalRefund,
   };
 };
 
