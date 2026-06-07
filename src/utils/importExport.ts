@@ -1,6 +1,6 @@
-import { Appointment, AppointmentStatus } from '@/types';
+import { Appointment, AppointmentStatus, StatusHistoryEntry } from '@/types';
 
-const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed'];
+const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show'];
 const REQUIRED_FIELDS: (keyof Appointment)[] = ['id', 'customerName', 'date', 'time', 'bodyPart', 'duration', 'depositPaid', 'status', 'createdAt'];
 
 export interface ImportValidationResult {
@@ -84,6 +84,26 @@ export function validateAppointment(data: unknown): { valid: boolean; errors: st
 
   if (apt.artistId !== undefined && apt.artistId !== null && typeof apt.artistId !== 'string') {
     errors.push('字段 artistId 必须是字符串');
+  }
+
+  if (apt.statusHistory !== undefined) {
+    if (!Array.isArray(apt.statusHistory)) {
+      errors.push('字段 statusHistory 必须是数组');
+    } else {
+      for (let i = 0; i < apt.statusHistory.length; i++) {
+        const entry = apt.statusHistory[i] as Record<string, unknown>;
+        if (typeof entry !== 'object' || entry === null) {
+          errors.push(`statusHistory[${i}] 必须是对象`);
+        } else {
+          if (!VALID_STATUSES.includes(entry.status as AppointmentStatus)) {
+            errors.push(`statusHistory[${i}].status 必须是有效的状态`);
+          }
+          if (typeof entry.timestamp !== 'string' || isNaN(Date.parse(entry.timestamp))) {
+            errors.push(`statusHistory[${i}].timestamp 必须是有效的日期字符串`);
+          }
+        }
+      }
+    }
   }
 
   return { valid: errors.length === 0, errors };

@@ -3,6 +3,7 @@ import Home from "@/pages/Home";
 import TodayWorkbench from "@/pages/TodayWorkbench";
 import CustomerProfile from "@/pages/CustomerProfile";
 import ReferenceImages from "@/pages/ReferenceImages";
+import OperationReview from "@/pages/OperationReview";
 
 export default function App() {
   return (
@@ -12,6 +13,7 @@ export default function App() {
         <Route path="/today" element={<TodayWorkbench />} />
         <Route path="/customer/:customerName" element={<CustomerProfile />} />
         <Route path="/reference-images" element={<ReferenceImages />} />
+        <Route path="/operation-review" element={<OperationReview />} />
         <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
       </Routes>
     </Router>

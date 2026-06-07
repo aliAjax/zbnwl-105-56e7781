@@ -5,6 +5,21 @@ export const formatDate = (date: Date): string => {
   return `${year}-${month}-${day}`;
 };
 
+export const getDateRange = (startDate: Date, endDate: Date): Date[] => {
+  const dates: Date[] = [];
+  const current = new Date(startDate);
+  current.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+  
+  while (current <= end) {
+    dates.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  
+  return dates;
+};
+
 export const getWeekDates = (days: number = 8, startDate?: Date): Date[] => {
   const dates: Date[] = [];
   const start = startDate ? new Date(startDate) : new Date();

@@ -127,6 +127,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
       artistId: formData.artistId || undefined,
       status: editingAppointment?.status || ('pending' as AppointmentStatus),
       createdAt: editingAppointment?.createdAt || new Date().toISOString(),
+      statusHistory: editingAppointment?.statusHistory || [],
     };
 
     const conflicts = findConflictingAppointments(appointment);

@@ -49,19 +49,47 @@ export function useAppointmentsRepository() {
   const addAppointment = useCallback(async (appointment: Appointment) => {
     const repo = repositoryRef.current;
     const current = await repo.getAll();
-    const exists = current.find(apt => apt.id === appointment.id);
+    
+    const appointmentWithHistory: Appointment = {
+      ...appointment,
+      statusHistory: appointment.statusHistory || [
+        {
+          status: appointment.status,
+          timestamp: new Date().toISOString(),
+          note: '创建预约',
+        },
+      ],
+    };
+
+    const exists = current.find(apt => apt.id === appointmentWithHistory.id);
     if (exists) {
-      const updated = current.map(apt => apt.id === appointment.id ? appointment : apt);
+      const updated = current.map(apt => apt.id === appointmentWithHistory.id ? appointmentWithHistory : apt);
       await repo.save(updated);
     } else {
-      await repo.save([...current, appointment]);
+      await repo.save([...current, appointmentWithHistory]);
     }
   }, []);
 
   const updateAppointment = useCallback(async (id: string, updates: Partial<Appointment>) => {
     const repo = repositoryRef.current;
     const current = await repo.getAll();
-    const updated = current.map(apt => apt.id === id ? { ...apt, ...updates } : apt);
+    const existing = current.find(apt => apt.id === id);
+    
+    let finalUpdates = { ...updates };
+    
+    if (updates.status && existing && updates.status !== existing.status) {
+      const newHistoryEntry = {
+        status: updates.status,
+        timestamp: new Date().toISOString(),
+        note: '状态变更',
+      };
+      finalUpdates.statusHistory = [
+        ...(existing.statusHistory || []),
+        newHistoryEntry,
+      ];
+    }
+
+    const updated = current.map(apt => apt.id === id ? { ...apt, ...finalUpdates } : apt);
     await repo.save(updated);
   }, []);
 

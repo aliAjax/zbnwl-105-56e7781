@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Filter, Calendar, List, Grid } from 'lucide-react';
+import { Plus, CalendarDays, LayoutDashboard, Image, BarChart3, Download, Upload, Users, Filter, Calendar, List, Grid, TrendingUp } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppointmentModal } from '@/components/AppointmentModal';
 import { ArtistModal } from '@/components/ArtistModal';
@@ -227,6 +227,13 @@ export function AppointmentBoard() {
               >
                 <BarChart3 className="w-4 h-4" />
                 <span>收入看板</span>
+              </button>
+              <button
+                onClick={() => navigate('/operation-review')}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-ink-800 hover:bg-ink-700 text-gray-300 rounded-xl font-medium transition-all duration-300 border border-ink-700"
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>运营复盘</span>
               </button>
               <button
                 onClick={handleExport}
