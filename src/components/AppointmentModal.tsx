@@ -32,13 +32,42 @@ const initialFormData = {
 interface NewPaymentForm {
   type: PaymentType;
   amount: number;
+  timestamp: string;
   note: string;
 }
 
-const initialNewPayment: NewPaymentForm = {
+const toDateTimeLocalInputValue = (value?: string): string => {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) return '';
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 16);
+};
+
+const toIsoTimestamp = (value: string): string => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+};
+
+const formatPaymentTime = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '时间无效';
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const createInitialNewPayment = (): NewPaymentForm => ({
   type: 'deposit',
   amount: 0,
+  timestamp: toDateTimeLocalInputValue(),
   note: '',
+});
+
+const getInitialNewPayment = (): NewPaymentForm => {
+  return createInitialNewPayment();
 };
 
 export function AppointmentModal({ isOpen, editingAppointment, selectedDate, selectedTime = '10:00', appointments, artists, onSave, onClose }: AppointmentModalProps) {
@@ -49,7 +78,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
   const [pendingAppointment, setPendingAppointment] = useState<Appointment | null>(null);
   const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
   const [showAddPayment, setShowAddPayment] = useState(false);
-  const [newPayment, setNewPayment] = useState<NewPaymentForm>(initialNewPayment);
+  const [newPayment, setNewPayment] = useState<NewPaymentForm>(() => getInitialNewPayment());
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
 
   const activeArtists = artists.filter(a => a.active);
@@ -90,7 +119,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
       setConflictingAppointments([]);
       setPendingAppointment(null);
       setShowAddPayment(false);
-      setNewPayment(initialNewPayment);
+      setNewPayment(getInitialNewPayment());
       setEditingPaymentId(null);
     }
   }, [isOpen, editingAppointment, selectedDate, selectedTime]);
@@ -130,18 +159,18 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
   };
 
   const handleAddPayment = () => {
-    if (newPayment.amount <= 0) return;
+    if (newPayment.amount <= 0 || !newPayment.timestamp) return;
     
     const newRecord: PaymentRecord = {
       id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
       type: newPayment.type,
       amount: newPayment.amount,
-      timestamp: new Date().toISOString(),
+      timestamp: toIsoTimestamp(newPayment.timestamp),
       note: newPayment.note.trim() || undefined,
     };
     
     setPaymentRecords([...paymentRecords, newRecord]);
-    setNewPayment(initialNewPayment);
+    setNewPayment(getInitialNewPayment());
     setShowAddPayment(false);
   };
 
@@ -154,25 +183,32 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
     setNewPayment({
       type: record.type,
       amount: record.amount,
+      timestamp: toDateTimeLocalInputValue(record.timestamp),
       note: record.note || '',
     });
   };
 
   const handleSaveEditPayment = () => {
-    if (!editingPaymentId || newPayment.amount <= 0) return;
+    if (!editingPaymentId || newPayment.amount <= 0 || !newPayment.timestamp) return;
     
     setPaymentRecords(paymentRecords.map(r =>
       r.id === editingPaymentId
-        ? { ...r, type: newPayment.type, amount: newPayment.amount, note: newPayment.note.trim() || undefined }
+        ? {
+            ...r,
+            type: newPayment.type,
+            amount: newPayment.amount,
+            timestamp: toIsoTimestamp(newPayment.timestamp),
+            note: newPayment.note.trim() || undefined,
+          }
         : r
     ));
     setEditingPaymentId(null);
-    setNewPayment(initialNewPayment);
+    setNewPayment(getInitialNewPayment());
   };
 
   const handleCancelEditPayment = () => {
     setEditingPaymentId(null);
-    setNewPayment(initialNewPayment);
+    setNewPayment(getInitialNewPayment());
   };
 
   const currentPaymentSummary = calculatePaymentSummary({ paymentRecords } as Appointment);
@@ -460,6 +496,12 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
                           />
                         </div>
                         <input
+                          type="datetime-local"
+                          value={newPayment.timestamp}
+                          onChange={(e) => setNewPayment({ ...newPayment, timestamp: e.target.value })}
+                          className="w-full px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                        />
+                        <input
                           type="text"
                           value={newPayment.note}
                           onChange={(e) => setNewPayment({ ...newPayment, note: e.target.value })}
@@ -490,6 +532,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
                             {PAYMENT_TYPE_LABELS[record.type]}
                           </span>
                           <span className="text-white font-medium">¥{record.amount}</span>
+                          <span className="text-gray-500 text-xs">{formatPaymentTime(record.timestamp)}</span>
                           {record.note && (
                             <span className="text-gray-500 text-xs">({record.note})</span>
                           )}
@@ -543,6 +586,12 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
                   />
                 </div>
                 <input
+                  type="datetime-local"
+                  value={newPayment.timestamp}
+                  onChange={(e) => setNewPayment({ ...newPayment, timestamp: e.target.value })}
+                  className="w-full px-3 py-2 bg-ink-900 border border-ink-600 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold-500"
+                />
+                <input
                   type="text"
                   value={newPayment.note}
                   onChange={(e) => setNewPayment({ ...newPayment, note: e.target.value })}
@@ -559,7 +608,7 @@ export function AppointmentModal({ isOpen, editingAppointment, selectedDate, sel
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setShowAddPayment(false); setNewPayment(initialNewPayment); }}
+                    onClick={() => { setShowAddPayment(false); setNewPayment(getInitialNewPayment()); }}
                     className="flex-1 px-3 py-2 bg-ink-700 text-gray-300 rounded-lg text-sm hover:bg-ink-600 transition-colors"
                   >
                     取消

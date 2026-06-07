@@ -1,7 +1,7 @@
 import { DollarSign, Calendar, Clock, TrendingUp, ArrowDownCircle, MinusCircle, PlusCircle } from 'lucide-react';
 import { Appointment } from '@/types';
 import { formatDate, getWeekDates } from '@/utils/dateUtils';
-import { calculateBatchPaymentSummary, hasDepositPaid } from '@/utils/paymentUtils';
+import { calculateDailyStatsByDimension, hasDepositPaid, PaymentSummary } from '@/utils/paymentUtils';
 
 interface RevenueDashboardProps {
   appointments: Appointment[];
@@ -17,6 +17,7 @@ interface StatsData {
   completedCount: number;
   totalAppointments: number;
   totalEstimatedRevenue: number;
+  recordCount: number;
 }
 
 export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
@@ -30,15 +31,35 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
   const monthStartStr = formatDate(monthStart);
   const monthEndStr = formatDate(monthEnd);
 
-  const calculateStats = (filterFn: (apt: Appointment) => boolean): StatsData => {
-    const filtered = appointments.filter(filterFn);
-    
-    const paymentSummary = calculateBatchPaymentSummary(filtered);
+  const getEmptyPaymentSummary = (): PaymentSummary => ({
+    totalDeposit: 0,
+    totalBalance: 0,
+    totalSupplement: 0,
+    totalRefund: 0,
+    totalReceived: 0,
+    netIncome: 0,
+  });
 
-    const unpaidDepositCount = filtered.filter(apt => !hasDepositPaid(apt)).length;
-    const completedCount = filtered.filter(apt => apt.status === 'completed').length;
+  const calculateStats = (startDate: string, endDate: string): StatsData => {
+    const appointmentDateAppointments = appointments.filter((apt) => {
+      return apt.date >= startDate && apt.date <= endDate;
+    });
+    const dailyPaymentStats = calculateDailyStatsByDimension(appointments, 'payment_date', startDate, endDate);
+    const paymentSummary = dailyPaymentStats.reduce<PaymentSummary>((summary, day) => {
+      summary.totalDeposit += day.summary.totalDeposit;
+      summary.totalBalance += day.summary.totalBalance;
+      summary.totalSupplement += day.summary.totalSupplement;
+      summary.totalRefund += day.summary.totalRefund;
+      summary.totalReceived += day.summary.totalReceived;
+      summary.netIncome += day.summary.netIncome;
+      return summary;
+    }, getEmptyPaymentSummary());
+    const recordCount = dailyPaymentStats.reduce((sum, day) => sum + day.recordCount, 0);
 
-    const totalEstimatedRevenue = filtered.reduce((sum, apt) => {
+    const unpaidDepositCount = appointmentDateAppointments.filter(apt => !hasDepositPaid(apt)).length;
+    const completedCount = appointmentDateAppointments.filter(apt => apt.status === 'completed').length;
+
+    const totalEstimatedRevenue = appointmentDateAppointments.reduce((sum, apt) => {
       const deposit = apt.depositAmount || 0;
       const balance = apt.estimatedBalance || 0;
       return sum + deposit + balance;
@@ -52,18 +73,14 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
       netIncome: paymentSummary.netIncome,
       unpaidDepositCount,
       completedCount,
-      totalAppointments: filtered.length,
+      totalAppointments: appointmentDateAppointments.length,
       totalEstimatedRevenue,
+      recordCount,
     };
   };
 
-  const weekStats = calculateStats((apt) => {
-    return apt.date >= weekStartStr && apt.date <= weekEndStr;
-  });
-
-  const monthStats = calculateStats((apt) => {
-    return apt.date >= monthStartStr && apt.date <= monthEndStr;
-  });
+  const weekStats = calculateStats(weekStartStr, weekEndStr);
+  const monthStats = calculateStats(monthStartStr, monthEndStr);
 
   const StatCard = ({ 
     title, 
@@ -101,7 +118,7 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
           </div>
           <div>
             <h2 className="font-display text-xl font-semibold text-white">收入与定金看板</h2>
-            <p className="text-gray-500 text-sm">统计未来八天及本月的预约收入数据</p>
+            <p className="text-gray-500 text-sm">金额按收款日期入账，待跟进按预约日期统计</p>
           </div>
         </div>
 
@@ -116,7 +133,7 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
               value={`¥${weekStats.netIncome.toLocaleString()}`}
               icon={TrendingUp}
               color="bg-emerald-500/20"
-              subtitle={`${weekStats.totalAppointments} 个预约`}
+              subtitle={`${weekStats.recordCount} 条流水`}
             />
             <StatCard
               title="已收定金"
@@ -167,7 +184,7 @@ export function RevenueDashboard({ appointments }: RevenueDashboardProps) {
               value={`¥${monthStats.netIncome.toLocaleString()}`}
               icon={TrendingUp}
               color="bg-emerald-500/20"
-              subtitle={`${monthStats.totalAppointments} 个预约`}
+              subtitle={`${monthStats.recordCount} 条流水`}
             />
             <StatCard
               title="已收定金"
