@@ -24,6 +24,11 @@ export interface PaymentRecord {
   note?: string;
 }
 
+export const TIME_DIMENSION_LABELS: Record<string, string> = {
+  appointment_date: '按预约日期',
+  payment_date: '按收款日期',
+};
+
 export interface StatusHistoryEntry {
   status: AppointmentStatus;
   timestamp: string;

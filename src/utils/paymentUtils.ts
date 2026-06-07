@@ -1,4 +1,7 @@
 import { Appointment, PaymentRecord, PaymentType } from '@/types';
+import { formatDate } from '@/utils/dateUtils';
+
+export type DateDimension = 'appointment_date' | 'payment_date';
 
 export interface PaymentSummary {
   totalDeposit: number;
@@ -7,6 +10,13 @@ export interface PaymentSummary {
   totalRefund: number;
   totalReceived: number;
   netIncome: number;
+}
+
+export interface DailyPaymentStats {
+  date: string;
+  summary: PaymentSummary;
+  appointmentCount: number;
+  recordCount: number;
 }
 
 export function getPaymentRecords(apt: Appointment): PaymentRecord[] {
@@ -155,4 +165,120 @@ export function deletePaymentRecord(
     depositPaid: depositTotal > 0,
     depositAmount: depositTotal > 0 ? depositTotal : apt.depositAmount,
   };
+}
+
+export function calculateDailyStatsByDimension(
+  appointments: Appointment[],
+  dimension: DateDimension,
+  startDate?: string,
+  endDate?: string
+): DailyPaymentStats[] {
+  const statsMap: Record<string, {
+    summary: PaymentSummary;
+    appointmentIds: Set<string>;
+    recordCount: number;
+  }> = {};
+
+  const ensureDateEntry = (date: string) => {
+    if (!statsMap[date]) {
+      statsMap[date] = {
+        summary: {
+          totalDeposit: 0,
+          totalBalance: 0,
+          totalSupplement: 0,
+          totalRefund: 0,
+          totalReceived: 0,
+          netIncome: 0,
+        },
+        appointmentIds: new Set<string>(),
+        recordCount: 0,
+      };
+    }
+  };
+
+  const addRecordToStats = (date: string, apt: Appointment, record: PaymentRecord) => {
+    ensureDateEntry(date);
+    const entry = statsMap[date];
+    entry.appointmentIds.add(apt.id);
+    entry.recordCount++;
+
+    switch (record.type) {
+      case 'deposit':
+        entry.summary.totalDeposit += record.amount;
+        entry.summary.totalReceived += record.amount;
+        entry.summary.netIncome += record.amount;
+        break;
+      case 'balance':
+        entry.summary.totalBalance += record.amount;
+        entry.summary.totalReceived += record.amount;
+        entry.summary.netIncome += record.amount;
+        break;
+      case 'supplement':
+        entry.summary.totalSupplement += record.amount;
+        entry.summary.totalReceived += record.amount;
+        entry.summary.netIncome += record.amount;
+        break;
+      case 'refund':
+        entry.summary.totalRefund += record.amount;
+        entry.summary.netIncome -= record.amount;
+        break;
+    }
+  };
+
+  for (const apt of appointments) {
+    const records = getPaymentRecords(apt);
+
+    if (dimension === 'appointment_date') {
+      const date = apt.date;
+      if (startDate && date < startDate) continue;
+      if (endDate && date > endDate) continue;
+
+      for (const record of records) {
+        addRecordToStats(date, apt, record);
+      }
+    } else {
+      for (const record of records) {
+        const date = formatDate(new Date(record.timestamp));
+        if (startDate && date < startDate) continue;
+        if (endDate && date > endDate) continue;
+        addRecordToStats(date, apt, record);
+      }
+    }
+  }
+
+  const dates = Object.keys(statsMap).sort();
+  return dates.map(date => ({
+    date,
+    summary: statsMap[date].summary,
+    appointmentCount: statsMap[date].appointmentIds.size,
+    recordCount: statsMap[date].recordCount,
+  }));
+}
+
+export function migrateAppointmentPaymentRecords(apt: Appointment): Appointment {
+  if (apt.paymentRecords && apt.paymentRecords.length > 0) {
+    return apt;
+  }
+
+  const records: PaymentRecord[] = [];
+  const createdAt = apt.createdAt || new Date().toISOString();
+
+  if (apt.depositPaid && apt.depositAmount && apt.depositAmount > 0) {
+    records.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      type: 'deposit',
+      amount: apt.depositAmount,
+      timestamp: createdAt,
+      note: '数据迁移 - 定金',
+    });
+  }
+
+  return {
+    ...apt,
+    paymentRecords: records.length > 0 ? records : undefined,
+  };
+}
+
+export function migrateBatchPaymentRecords(appointments: Appointment[]): Appointment[] {
+  return appointments.map(apt => migrateAppointmentPaymentRecords(apt));
 }

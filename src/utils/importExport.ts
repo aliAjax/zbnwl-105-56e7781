@@ -1,4 +1,5 @@
 import { Appointment, AppointmentStatus, PaymentType } from '@/types';
+import { migrateBatchPaymentRecords } from '@/utils/paymentUtils';
 
 const VALID_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'arrived', 'completed', 'cancelled', 'no_show'];
 const VALID_PAYMENT_TYPES: PaymentType[] = ['deposit', 'balance', 'supplement', 'refund'];
@@ -169,7 +170,9 @@ export function parseAndValidateImportData(jsonString: string): ImportValidation
     }
   }
 
-  return { valid, invalid };
+  const migratedValid = migrateBatchPaymentRecords(valid);
+
+  return { valid: migratedValid, invalid };
 }
 
 export function calculateImportDiff(
